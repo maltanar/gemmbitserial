@@ -6,22 +6,25 @@
 
 using namespace std;
 
-typedef vector<Roaring> BitSerialMatrix;
-typedef Roaring BitSerialVector;
+typedef vector<Roaring> BitSerialVector;
+typedef vector<BitSerialVector> BitSerialMatrix;
+typedef vector<uint32_t> ResultVector;
 
 /**
 * Convert a buffer of unsigned char values into a gemm-bitserial vector
 */
 BitSerialVector toBitSerialVector(const uint8_t * vec, const size_t n, const size_t bits) {
   BitSerialVector ret;
-  for(size_t i = 0; i < n; i++) {
-    unsigned char current = vec[i];
-    for(size_t b = 0; b < bits; b++) {
-      if(current & 0x1 == 1) {
-        ret.add(b * n + i);
+
+  for(size_t b = 0; b < bits; b++) {
+    Roaring currentBitGroup;
+    uint8_t currentMask = 1 << b;
+    for(size_t i = 0; i < n; i++) {
+      if((vec[i] & currentMask) != 0) {
+        currentBitGroup.add(i);
       }
-      current = current >> 1;
     }
+    ret.push_back(currentBitGroup);
   }
   return ret;
 }
@@ -29,12 +32,14 @@ BitSerialVector toBitSerialVector(const uint8_t * vec, const size_t n, const siz
 /**
 * Convert a gemm-bitserial vector into a buffer of unsigned char values
 */
-void fromBitSerialVector(const BitSerialVector & vec, const size_t n, const size_t bits, uint8_t * ret) {
+void fromBitSerialVector(const BitSerialVector & vec, const size_t n, uint8_t * ret) {
+  const size_t bits = vec.size();
   for(size_t i = 0; i < n; i++) {
     uint8_t current = 0;
     for(size_t b = 0; b < bits; b++) {
-      if(vec.contains(b * n + i))
-      current = current | (1 << b);
+      if(vec[b].contains(i)) {
+        current = current | (1 << b);
+      }
     }
     ret[i] = current;
   }
@@ -57,13 +62,18 @@ BitSerialMatrix toBitSerialMatrix(const uint8_t * mat, const size_t rows, const 
 */
 void fromBitSerialMatrix(const BitSerialMatrix & mat, const size_t rows, const size_t cols, size_t bits, uint8_t * ret) {
   for(size_t r = 0; r < rows; r++) {
-    fromBitSerialVector(mat[r], cols, bits, &ret[r*cols]);
+    fromBitSerialVector(mat[r], cols, &ret[r*cols]);
   }
 }
 
 int main(int argc, char const *argv[]) {
   cout << "Hello world!" << endl;
   uint8_t tst[] = {1,2,3,4,5,6};
+  BitSerialVector v = toBitSerialVector(tst, 6, 3);
+  for(unsigned int i = 0; i < 3; i++) {
+    cout << "Bitpos " << i << ": ";
+    v[i].printf();
+  }
   BitSerialMatrix m = toBitSerialMatrix(tst, 3, 2, 3);
   uint8_t tn[6];
   fromBitSerialMatrix(m, 3, 2, 3, tn);
