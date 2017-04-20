@@ -85,3 +85,14 @@ ResultVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSerialVec
   }
   return ret;
 }
+
+/**
+* Generate a random vector with given dimension and number of bits <= 8
+*/
+void generateRandomVector(size_t bits, size_t dim, uint8_t * ret) {
+  uint8_t minVal = 0;
+  uint8_t maxVal = (1 << bits) - 1;
+  for(size_t i = 0; i < dim; i++) {
+    ret[i] = rand() % maxVal;
+  }
+}

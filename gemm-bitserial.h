@@ -33,3 +33,8 @@ void fromBitSerialMatrix(const BitSerialMatrix & mat, const size_t rows, const s
 * Multiply a gemm-bitserial matrix and vector
 */
 ResultVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSerialVector & x, const size_t cols, const bool Asigned = false, const bool xsigned = false);
+
+/**
+* Generate a random vector with given dimension and number of bits <= 8
+*/
+void generateRandomVector(size_t bits, size_t dim, uint8_t * ret);

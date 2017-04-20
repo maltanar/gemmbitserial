@@ -5,16 +5,10 @@
 
 using namespace std;
 
-void generateRandomVector(size_t bits, size_t dim, uint8_t * ret) {
-  uint8_t minVal = 0;
-  uint8_t maxVal = (1 << bits) - 1;
-  for(size_t i = 0; i < dim; i++) {
-    ret[i] = rand() % maxVal;
-  }
-}
+#define VERBOSE_TEST(x) ;
+//#define VERBOSE_TEST(x) x
 
 bool test_conversions() {
-  cout << "Now running conversion tests..." << endl;
   vector<size_t> param_bits {1, 2, 3, 4, 5, 6, 7, 8};
   vector<size_t> param_dims {16, 32, 100, 1024, 4096};
   unsigned int numConfigs = 0, ok = 0, nok = 0;
@@ -35,7 +29,7 @@ bool test_conversions() {
         nok++;
       }
       numConfigs++;
-      cout << "Bits = " << b << " dim = " << d << " result = " << res << endl;
+      VERBOSE_TEST(cout << "Bits = " << b << " dim = " << d << " result = " << res << endl);
     }
   }
   cout << "Conversion tests: " << ok << " OK, " << nok << " NOK" << endl;
@@ -43,7 +37,6 @@ bool test_conversions() {
 }
 
 bool test_matrix_vector() {
-  cout << "Now running matrix vector multiplication tests..." << endl;
   vector<size_t> param_bits {1, 2, 3, 4, 5, 6, 7, 8};
   vector<size_t> param_dims {16, 32, 100, 256};
   deque<bool> param_allow_neg {false, true};
@@ -85,7 +78,7 @@ bool test_matrix_vector() {
             nok++;
           }
           numConfigs++;
-          cout << "Bits = " << b << " dim = " << d << " matneg = " << matneg << " vecneg = " << vecneg << " result = " << res << endl;
+          VERBOSE_TEST(cout << "Bits = " << b << " dim = " << d << " matneg = " << matneg << " vecneg = " << vecneg << " result = " << res << endl);
         }
       }
     }
