@@ -5,6 +5,7 @@
 using namespace std;
 
 int main(int argc, char const *argv[]) {
+  tellmeall();
   size_t b = 2;
   size_t d = 1024;
   uint8_t * rnd_mat = new uint8_t[d*d];
