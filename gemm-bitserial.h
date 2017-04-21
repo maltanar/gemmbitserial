@@ -3,7 +3,6 @@
 #include <string.h>
 #include <vector>
 #include <memory>
-#include "roaring.hh"
 
 class MyBitVector {
 public:

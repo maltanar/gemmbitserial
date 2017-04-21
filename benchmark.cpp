@@ -21,8 +21,8 @@ int main(int argc, char const *argv[]) {
     resvec = bitSerialMatrixVector(bsm, bsv, d);
   auto end = chrono::high_resolution_clock::now();
   float uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
-  float perf = 1000000 * (d*d*b*b*2*reps / uscount);
-  cout << "Time: " << uscount << " microseconds" << endl;
+  float perf = 1000000 * (d*d*b*b*2 / uscount);
+  cout << "Time for single matrix-vector: " << uscount << " microseconds" << endl;
   cout << "Performance: " << perf << " binary ops per second" << endl;
 
 

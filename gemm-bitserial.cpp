@@ -1,5 +1,6 @@
 #include "gemm-bitserial.h"
 #include <iostream>
+#include <cmath>
 using namespace std;
 
 MyBitVector::MyBitVector(size_t numBits) {
