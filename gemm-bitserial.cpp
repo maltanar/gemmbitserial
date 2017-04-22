@@ -70,11 +70,10 @@ AccumulateVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSeria
 
   for(size_t r = 0; r < rows; r++) {
     AccumulateElem rowres = 0;
-    BitSerialVector crow = A[r];
     for(size_t Abit = 0; Abit < Abits; Abit++) {
       for(size_t xbit = 0; xbit < xbits; xbit++) {
         // AND and popcount
-        uint32_t contr = crow[Abit].and_cardinality(x[xbit]);
+        uint32_t contr = A[r][Abit].and_cardinality(x[xbit]);
         // scale
         contr = contr << (Abit + xbit);
         // negate if needed
@@ -103,11 +102,10 @@ ResultVector bitSerialMatrixVectorThreshold(const BitSerialMatrix & A, const Bit
   ResultElem postthres;
   for(size_t r = 0; r < rows; r++) {
     AccumulateElem rowres = 0;
-    BitSerialVector crow = A[r];
     for(size_t Abit = 0; Abit < Abits; Abit++) {
       for(size_t xbit = 0; xbit < xbits; xbit++) {
         // AND and popcount
-        uint32_t contr = crow[Abit].and_cardinality(x[xbit]);
+        uint32_t contr = A[r][Abit].and_cardinality(x[xbit]);
         // scale
         contr = contr << (Abit + xbit);
         // negate if needed
