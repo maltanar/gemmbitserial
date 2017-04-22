@@ -88,12 +88,28 @@ bool test_matrix_vector() {
   return ok == numConfigs;
 }
 
+bool test_thresholding() {
+  bool ret = true;
+  AccumulateVector acc {10, 75, 134, 55, 22, 41, 7, 17, 33, 99};
+  ThresholdMatrix thres {{10}, {50}, {90}};
+  ResultVector golden {1, 2, 3, 2, 1, 1, 0, 1, 1, 3};
+  ResultVector chk = threshold(acc, thres);
+  ret &= (chk == golden);
+  if(ret) {
+    cout << "Thresholding tests OK" << endl;
+  } else {
+    cout << "Thresholding tests failed" << endl;
+  }
+  return ret;
+}
+
 
 int main(int argc, char const *argv[]) {
   srand(time(NULL));
   bool all_ok = true;
   all_ok &= test_conversions();
   all_ok &= test_matrix_vector();
+  all_ok &= test_thresholding();
 
   if(all_ok) {
     cout << "All tests completed successfully" << endl;

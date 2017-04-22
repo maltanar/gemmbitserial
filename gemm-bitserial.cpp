@@ -100,8 +100,8 @@ ResultVector bitSerialMatrixVectorThreshold(const BitSerialMatrix & A, const Bit
   const size_t numThres = T.size();
   const size_t numThresChans = T[0].size();
   ResultVector ret;
+  ResultElem postthres;
   for(size_t r = 0; r < rows; r++) {
-    ResultElem postthres = 0;
     AccumulateElem rowres = 0;
     BitSerialVector crow = A[r];
     for(size_t Abit = 0; Abit < Abits; Abit++) {
@@ -118,13 +118,16 @@ ResultVector bitSerialMatrixVectorThreshold(const BitSerialMatrix & A, const Bit
       }
     }
     // handle both broadcast and one-to-one threshold channel cases
-    if(numThresChans == rows) {
-      // one threshold channel for each row
-      for(size_t t = 0; t < numThres; t++) {
+    postthres = 0;
+    for(size_t t = 0; t < numThres; t++) {
+      if(numThresChans == rows) {
+        // one threshold channel for each row
         postthres += (rowres >= T[t][r]) ? 1 : 0;
+      } else {
+        // cycle threshold channels
+        // TODO get rid of modulo here for higher performance
+        postthres += (rowres >= T[t][r % numThresChans]) ? 1 : 0;
       }
-    } else {
-      throw "Not yet implemented: threshold broadcast";
     }
     ret.push_back(postthres);
   }
@@ -139,19 +142,23 @@ ResultVector threshold(const AccumulateVector & x, const ThresholdMatrix & T) {
   const size_t numThres = T.size();
   const size_t numThresChans = T[0].size();
   ResultVector ret;
+  ResultElem postthres;
+
   for(size_t r = 0; r < rows; r++) {
-    ResultElem postthres = 0;
-    // handle both broadcast and one-to-one threshold channel cases
-    if(numThresChans == rows) {
-      // one threshold channel for each row
-      for(size_t t = 0; t < numThres; t++) {
+    postthres = 0;
+    for(size_t t = 0; t < numThres; t++) {
+      if(numThresChans == rows) {
+        // one threshold channel for each row
         postthres += (x[r] >= T[t][r]) ? 1 : 0;
+      } else {
+        // cycle threshold channels
+        // TODO get rid of modulo here for higher performance
+        postthres += (x[r] >= T[t][r % numThresChans]) ? 1 : 0;
       }
-    } else {
-      throw "Not yet implemented: threshold broadcast";
     }
     ret.push_back(postthres);
   }
+
   return ret;
 }
 
