@@ -62,14 +62,14 @@ void fromBitSerialMatrix(const BitSerialMatrix & mat, const size_t rows, const s
 /**
 * Multiply a gemm-bitserial matrix and vector
 */
-ResultVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSerialVector & x, const size_t cols, const bool Asigned, const bool xsigned) {
+AccumulateVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSerialVector & x, const size_t cols, const bool Asigned, const bool xsigned) {
   const size_t rows = A.size();
   const size_t Abits = A[0].size();
   const size_t xbits = x.size();
-  ResultVector ret;
+  AccumulateVector ret;
 
   for(size_t r = 0; r < rows; r++) {
-    ResultElem rowres = 0;
+    AccumulateElem rowres = 0;
     BitSerialVector crow = A[r];
     for(size_t Abit = 0; Abit < Abits; Abit++) {
       for(size_t xbit = 0; xbit < xbits; xbit++) {
@@ -85,6 +85,72 @@ ResultVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSerialVec
       }
     }
     ret.push_back(rowres);
+  }
+  return ret;
+}
+
+ResultVector bitSerialMatrixVectorThreshold(const BitSerialMatrix & A, const BitSerialVector & x, const ThresholdMatrix & T, const size_t cols,  const bool Asigned, const bool xsigned) {
+  // this could have been implemented by just calling the matrix-vector first
+  // then thresholding the results, but we want more instruction-level parallelism
+  // to keep the CPU functional units occupied, so the matrix-vector code is
+  // repeated, and the thresholding is directly inserted inside the loop.
+  const size_t rows = A.size();
+  const size_t Abits = A[0].size();
+  const size_t xbits = x.size();
+  const size_t numThres = T.size();
+  const size_t numThresChans = T[0].size();
+  ResultVector ret;
+  for(size_t r = 0; r < rows; r++) {
+    ResultElem postthres = 0;
+    AccumulateElem rowres = 0;
+    BitSerialVector crow = A[r];
+    for(size_t Abit = 0; Abit < Abits; Abit++) {
+      for(size_t xbit = 0; xbit < xbits; xbit++) {
+        // AND and popcount
+        uint32_t contr = crow[Abit].and_cardinality(x[xbit]);
+        // scale
+        contr = contr << (Abit + xbit);
+        // negate if needed
+        bool neg_A = Asigned && (Abit == Abits-1);
+        bool neg_x = xsigned && (xbit == xbits-1);
+        bool neg = neg_A ^ neg_x;
+        rowres += neg ? -contr : contr;
+      }
+    }
+    // handle both broadcast and one-to-one threshold channel cases
+    if(numThresChans == rows) {
+      // one threshold channel for each row
+      for(size_t t = 0; t < numThres; t++) {
+        postthres += (rowres >= T[t][r]) ? 1 : 0;
+      }
+    } else {
+      throw "Not yet implemented: threshold broadcast";
+    }
+    ret.push_back(postthres);
+  }
+  return ret;
+}
+
+/**
+* Apply a set of thresholds to an AccumulateVector, returning the number of crossed thresholds
+*/
+ResultVector threshold(const AccumulateVector & x, const ThresholdMatrix & T) {
+  const size_t rows = x.size();
+  const size_t numThres = T.size();
+  const size_t numThresChans = T[0].size();
+  ResultVector ret;
+  for(size_t r = 0; r < rows; r++) {
+    ResultElem postthres = 0;
+    // handle both broadcast and one-to-one threshold channel cases
+    if(numThresChans == rows) {
+      // one threshold channel for each row
+      for(size_t t = 0; t < numThres; t++) {
+        postthres += (x[r] >= T[t][r]) ? 1 : 0;
+      }
+    } else {
+      throw "Not yet implemented: threshold broadcast";
+    }
+    ret.push_back(postthres);
   }
   return ret;
 }

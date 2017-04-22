@@ -48,15 +48,15 @@ bool test_matrix_vector() {
         for(auto & vecneg: param_allow_neg) {
           uint8_t * rnd_mat = new uint8_t[d*d];
           uint8_t * rnd_vec = new uint8_t[d];
-          ResultVector res_golden;
+          AccumulateVector res_golden;
           generateRandomVector(b, d, rnd_vec);
           generateRandomVector(b, d*d, rnd_mat);
           BitSerialVector bsv = toBitSerialVector(rnd_vec, d, b);
           BitSerialMatrix bsm = toBitSerialMatrix(rnd_mat, d, d, b);
-          ResultVector resvec = bitSerialMatrixVector(bsm, bsv, d, matneg, vecneg);
+          AccumulateVector resvec = bitSerialMatrixVector(bsm, bsv, d, matneg, vecneg);
           // manually compute golden result
           for(unsigned int i = 0; i < d; i++) {
-            ResultElem acc = 0;
+            AccumulateElem acc = 0;
             for(unsigned int j = 0; j < d; j++) {
               int32_t matelem_adj = rnd_mat[i * d + j];
               int32_t vecelem_adj = rnd_vec[j];
