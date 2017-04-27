@@ -9,29 +9,41 @@ int main(int argc, char const *argv[]) {
   size_t d = 1024;
   size_t thres_levels = 3;
   size_t reps = 100;
+  size_t reps_mm = 10;
   uint8_t * rnd_mat = new uint8_t[d*d];
   uint8_t * rnd_vec = new uint8_t[d];
   generateRandomVector(b, d, rnd_vec);
   generateRandomVector(b, d*d, rnd_mat);
-  // matrix-vector
   BitSerialVector bsv = toBitSerialVector(rnd_vec, d, b);
+  BitSerialVector bsv2 = toBitSerialVector(rnd_vec, d, b);
   BitSerialMatrix bsm = toBitSerialMatrix(rnd_mat, d, d, b);
-  AccumulateVector resvec;
+  // and_cardinality
   auto start = chrono::high_resolution_clock::now();
+  uint64_t res_card;
   for(unsigned int i = 0; i < reps; i++)
-    resvec = bitSerialMatrixVector(bsm, bsv, d);
+    res_card = bsv[0].and_cardinality(bsv2[0]);
   auto end = chrono::high_resolution_clock::now();
   float uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
-  float perf = 1000000 * (d*d*b*b*2 / uscount);
+  float perf = 1000000 * (d*2 / uscount);
+  cout << "Time for and_cardinality: " << uscount << " microseconds" << endl;
+  cout << "Performance for and_cardinality: " << perf << " binary ops per second" << endl;
+  // matrix-vector
+  AccumulateVector resvec;
+  start = chrono::high_resolution_clock::now();
+  for(unsigned int i = 0; i < reps; i++)
+    resvec = bitSerialMatrixVector(bsm, bsv, d);
+  end = chrono::high_resolution_clock::now();
+  uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
+  perf = 1000000 * (d*d*b*b*2 / uscount);
   cout << "Time for single matrix-vector: " << uscount << " microseconds" << endl;
   cout << "Performance for matrix-vector: " << perf << " binary ops per second" << endl;
   // matrix-matrix
   start = chrono::high_resolution_clock::now();
   AccumulateMatrix resmat;
-  for(unsigned int i = 0; i < reps; i++)
+  for(unsigned int i = 0; i < reps_mm; i++)
     resmat = bitSerialMatrixMatrix(bsm, bsm, d);
   end = chrono::high_resolution_clock::now();
-  uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
+  uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps_mm;
   perf = 1000000 * (d*d*d*b*b*2 / uscount);
   cout << "Time for single matrix-matrix: " << uscount << " microseconds" << endl;
   cout << "Performance for matrix-matrix: " << perf << " binary ops per second" << endl;
