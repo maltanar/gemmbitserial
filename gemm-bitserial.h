@@ -8,6 +8,7 @@ typedef std::vector<BitVector> BitSerialVector;
 typedef std::vector<BitSerialVector> BitSerialMatrix;
 typedef int32_t AccumulateElem;
 typedef std::vector<AccumulateElem> AccumulateVector;
+typedef std::vector<AccumulateVector> AccumulateMatrix;
 typedef uint8_t ResultElem;
 typedef std::vector<ResultElem> ResultVector;
 typedef std::vector<AccumulateVector> ThresholdMatrix;
@@ -36,6 +37,12 @@ void fromBitSerialMatrix(const BitSerialMatrix & mat, const size_t rows, const s
 * Multiply a gemm-bitserial matrix and vector
 */
 AccumulateVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSerialVector & x, const size_t cols, const bool Asigned = false, const bool xsigned = false);
+
+/**
+* Multiply two gemm-bitserial matrices. Assumes B is transposed. The result is
+* also produced in transposed format.
+*/
+AccumulateMatrix bitSerialMatrixMatrix(const BitSerialMatrix & A, const BitSerialMatrix & B, const size_t cols, const bool Asigned = false, const bool Bsigned = false);
 
 /**
 * Multiply a gemm-bitserial matrix and vector, followed by a thresholding operation

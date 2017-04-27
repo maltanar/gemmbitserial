@@ -13,6 +13,7 @@ int main(int argc, char const *argv[]) {
   uint8_t * rnd_vec = new uint8_t[d];
   generateRandomVector(b, d, rnd_vec);
   generateRandomVector(b, d*d, rnd_mat);
+  // matrix-vector
   BitSerialVector bsv = toBitSerialVector(rnd_vec, d, b);
   BitSerialMatrix bsm = toBitSerialMatrix(rnd_mat, d, d, b);
   AccumulateVector resvec;
@@ -23,8 +24,18 @@ int main(int argc, char const *argv[]) {
   float uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
   float perf = 1000000 * (d*d*b*b*2 / uscount);
   cout << "Time for single matrix-vector: " << uscount << " microseconds" << endl;
-  cout << "Performance: " << perf << " binary ops per second" << endl;
-  // now with thresholding
+  cout << "Performance for matrix-vector: " << perf << " binary ops per second" << endl;
+  // matrix-matrix
+  start = chrono::high_resolution_clock::now();
+  AccumulateMatrix resmat;
+  for(unsigned int i = 0; i < reps; i++)
+    resmat = bitSerialMatrixMatrix(bsm, bsm, d);
+  end = chrono::high_resolution_clock::now();
+  uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
+  perf = 1000000 * (d*d*d*b*b*2 / uscount);
+  cout << "Time for single matrix-matrix: " << uscount << " microseconds" << endl;
+  cout << "Performance for matrix-matrix: " << perf << " binary ops per second" << endl;
+  // matrix-vector-threshold
   ThresholdMatrix T;
 
   for(size_t l = 0; l < thres_levels; l++) {
@@ -42,7 +53,7 @@ int main(int argc, char const *argv[]) {
   uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
   perf = 1000000 * (d*d*b*b*2 / uscount);
   cout << "Time for single matrix-vector-threshold: " << uscount << " microseconds" << endl;
-  cout << "Performance: " << perf << " binary ops per second" << endl;
+  cout << "Performance for matrix-vector-threshold, not counting threshold ops: " << perf << " binary ops per second" << endl;
 
   delete [] rnd_mat;
   delete [] rnd_vec;
