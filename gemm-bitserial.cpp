@@ -66,14 +66,15 @@ AccumulateVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSeria
   const size_t rows = A.size();
   const size_t Abits = A[0].size();
   const size_t xbits = x.size();
-  AccumulateVector ret;
+  AccumulateVector ret(rows, 0);
 
   for(size_t r = 0; r < rows; r++) {
     AccumulateElem rowres = 0;
     for(size_t Abit = 0; Abit < Abits; Abit++) {
+      const BitVector & car = A[r][Abit];
       for(size_t xbit = 0; xbit < xbits; xbit++) {
         // AND and popcount
-        uint32_t contr = A[r][Abit].and_cardinality(x[xbit]);
+        uint32_t contr = car.and_cardinality(x[xbit]);
         // scale
         contr = contr << (Abit + xbit);
         // negate if needed
@@ -83,7 +84,7 @@ AccumulateVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSeria
         rowres += neg ? -contr : contr;
       }
     }
-    ret.push_back(rowres);
+    ret[r] = rowres;
   }
   return ret;
 }
