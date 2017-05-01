@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "bitvector.h"
+#include <ostream>
 
 typedef MyBitVector BitVector;
 typedef std::vector<BitVector> BitSerialVector;
@@ -12,6 +13,11 @@ typedef std::vector<AccumulateVector> AccumulateMatrix;
 typedef uint8_t ResultElem;
 typedef std::vector<ResultElem> ResultVector;
 typedef std::vector<AccumulateVector> ThresholdMatrix;
+
+std::ostream &operator<<(std::ostream &os, BitVector const &m);
+std::ostream &operator<<(std::ostream &os, BitSerialVector const &m);
+std::ostream &operator<<(std::ostream &os, ResultVector const &m);
+std::ostream &operator<<(std::ostream &os, AccumulateVector const &m);
 
 /**
 * Convert a buffer of unsigned char values into a gemm-bitserial vector

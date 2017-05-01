@@ -7,6 +7,7 @@ class MyBitVector {
 public:
   MyBitVector(size_t numBits);
 
+  size_t size() const;
   void add(uint64_t index);
   void clear();
   bool contains(uint64_t index) const;
@@ -14,7 +15,7 @@ public:
 
 protected:
   std::vector<uint64_t> m_buf;
-  size_t m_numWords, m_bufWordBits;
+  size_t m_numWords, m_bufWordBits, m_numBits;
   uint64_t m_posShift, m_posMask;
 
   uint64_t getWPos(uint64_t bitIndex) const;

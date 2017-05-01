@@ -7,6 +7,11 @@ MyBitVector::MyBitVector(size_t numBits) {
   m_buf = std::vector<uint64_t>(m_numWords, 0);
   m_posShift = std::log2(m_bufWordBits);
   m_posMask = (1 << m_posShift) - 1;
+  m_numBits = numBits;
+}
+
+size_t MyBitVector::size() const {
+  return m_numBits;
 }
 
 void MyBitVector::clear() {
