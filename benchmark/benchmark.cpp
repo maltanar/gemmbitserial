@@ -31,7 +31,7 @@ int main(int argc, char const *argv[]) {
   AccumulateVector resvec;
   start = chrono::high_resolution_clock::now();
   for(unsigned int i = 0; i < reps; i++)
-    resvec = bitSerialMatrixVector(bsm, bsv, d);
+    resvec = bitSerialMatrixVector(bsm, bsv);
   end = chrono::high_resolution_clock::now();
   uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
   perf = 1000000 * (d*d*b*b*2 / uscount);
@@ -41,7 +41,7 @@ int main(int argc, char const *argv[]) {
   start = chrono::high_resolution_clock::now();
   AccumulateMatrix resmat;
   for(unsigned int i = 0; i < reps_mm; i++)
-    resmat = bitSerialMatrixMatrix(bsm, bsm, d);
+    resmat = bitSerialMatrixMatrix(bsm, bsm);
   end = chrono::high_resolution_clock::now();
   uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps_mm;
   perf = 1000000 * (d*d*d*b*b*2 / uscount);
@@ -60,7 +60,7 @@ int main(int argc, char const *argv[]) {
   ResultVector thres_resvec;
   start = chrono::high_resolution_clock::now();
   for(unsigned int i = 0; i < reps; i++)
-    thres_resvec = bitSerialMatrixVectorThreshold(bsm, bsv, T, d);
+    thres_resvec = bitSerialMatrixVectorThreshold(bsm, bsv, T);
   end = chrono::high_resolution_clock::now();
   uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
   perf = 1000000 * (d*d*b*b*2 / uscount);

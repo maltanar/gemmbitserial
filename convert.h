@@ -18,7 +18,7 @@ BitSerialVector toBitSerialVector(const uint8_t * vec, const size_t n, const siz
 /**
 * Convert a gemm-bitserial vector into a buffer of unsigned char values
 */
-void fromBitSerialVector(const BitSerialVector & vec, const size_t n, uint8_t * ret);
+void fromBitSerialVector(const BitSerialVector & vec, uint8_t * ret);
 
 /**
 * Convert a buffer of unsigned char values into a gemm-bitserial matrix
@@ -28,4 +28,4 @@ BitSerialMatrix toBitSerialMatrix(const uint8_t * mat, const size_t rows, const 
 /**
 * Convert a buffer of unsigned char values into a gemm-bitserial matrix
 */
-void fromBitSerialMatrix(const BitSerialMatrix & mat, const size_t rows, const size_t cols, size_t bits, uint8_t * ret);
+void fromBitSerialMatrix(const BitSerialMatrix & mat, size_t bits, uint8_t * ret);

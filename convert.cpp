@@ -23,11 +23,12 @@ BitSerialVector toBitSerialVector(const uint8_t * vec, const size_t n, const siz
 /**
 * Convert a gemm-bitserial vector into a buffer of unsigned char values
 */
-void fromBitSerialVector(const BitSerialVector & vec, const size_t n, uint8_t * ret) {
-  const size_t bits = vec.size();
+void fromBitSerialVector(const BitSerialVector & vec, uint8_t * ret) {
+  const size_t precision = vec.size();
+  const size_t n = vec[0].size();
   for(size_t i = 0; i < n; i++) {
     uint8_t current = 0;
-    for(size_t b = 0; b < bits; b++) {
+    for(size_t b = 0; b < precision; b++) {
       if(vec[b].contains(i)) {
         current = current | (1 << b);
       }
@@ -51,8 +52,12 @@ BitSerialMatrix toBitSerialMatrix(const uint8_t * mat, const size_t rows, const 
 /**
 * Convert a buffer of unsigned char values into a gemm-bitserial matrix
 */
-void fromBitSerialMatrix(const BitSerialMatrix & mat, const size_t rows, const size_t cols, size_t bits, uint8_t * ret) {
+void fromBitSerialMatrix(const BitSerialMatrix & mat, uint8_t * ret) {
+  const size_t rows = mat.size();
+  const size_t bits = mat[0].size();
+  const size_t cols = mat[0][0].size();
+
   for(size_t r = 0; r < rows; r++) {
-    fromBitSerialVector(mat[r], cols, &ret[r*cols]);
+    fromBitSerialVector(mat[r], &ret[r*cols]);
   }
 }

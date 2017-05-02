@@ -16,18 +16,18 @@ std::ostream &operator<<(std::ostream &os, AccumulateVector const &m);
 /**
 * Multiply a gemm-bitserial matrix and vector
 */
-AccumulateVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSerialVector & x, const size_t cols, const bool Asigned = false, const bool xsigned = false);
+AccumulateVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSerialVector & x, const bool Asigned = false, const bool xsigned = false);
 
 /**
 * Multiply two gemm-bitserial matrices. Assumes B is transposed. The result is
 * also produced in transposed format.
 */
-AccumulateMatrix bitSerialMatrixMatrix(const BitSerialMatrix & A, const BitSerialMatrix & B, const size_t cols, const bool Asigned = false, const bool Bsigned = false);
+AccumulateMatrix bitSerialMatrixMatrix(const BitSerialMatrix & A, const BitSerialMatrix & B, const bool Asigned = false, const bool Bsigned = false);
 
 /**
 * Multiply a gemm-bitserial matrix and vector, followed by a thresholding operation
 */
-ResultVector bitSerialMatrixVectorThreshold(const BitSerialMatrix & A, const BitSerialVector & x, const ThresholdMatrix & T, const size_t cols,  const bool Asigned = false, const bool xsigned = false);
+ResultVector bitSerialMatrixVectorThreshold(const BitSerialMatrix & A, const BitSerialVector & x, const ThresholdMatrix & T, const bool Asigned = false, const bool xsigned = false);
 
 /**
 * Apply a set of thresholds to an AccumulateVector, returning the number of crossed thresholds

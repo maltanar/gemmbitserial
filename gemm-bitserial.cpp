@@ -38,7 +38,7 @@ std::ostream &operator<<(std::ostream &os, AccumulateVector const &m) {
 /**
 * Multiply a gemm-bitserial matrix and vector
 */
-AccumulateVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSerialVector & x, const size_t cols, const bool Asigned, const bool xsigned) {
+AccumulateVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSerialVector & x, const bool Asigned, const bool xsigned) {
   const size_t rows = A.size();
   const size_t Abits = A[0].size();
   const size_t xbits = x.size();
@@ -69,7 +69,7 @@ AccumulateVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSeria
 * Multiply two gemm-bitserial matrices. Assumes B is transposed. The result is
 * also produced in transposed format.
 */
-AccumulateMatrix bitSerialMatrixMatrix(const BitSerialMatrix & A, const BitSerialMatrix & B, const size_t cols, const bool Asigned, const bool Bsigned) {
+AccumulateMatrix bitSerialMatrixMatrix(const BitSerialMatrix & A, const BitSerialMatrix & B, const bool Asigned, const bool Bsigned) {
   // TODO this is a naive matmul implementation, matrix-vector with one column of B at a time
   // to get higher performance, we should at least have stripes
   const size_t out_rows = A.size();
@@ -79,13 +79,13 @@ AccumulateMatrix bitSerialMatrixMatrix(const BitSerialMatrix & A, const BitSeria
   AccumulateMatrix ret;
 
   for(size_t o = 0; o < out_cols; o++) {
-    ret.push_back(bitSerialMatrixVector(A, B[o], cols, Asigned, Bsigned));
+    ret.push_back(bitSerialMatrixVector(A, B[o], Asigned, Bsigned));
   }
 
   return ret;
 }
 
-ResultVector bitSerialMatrixVectorThreshold(const BitSerialMatrix & A, const BitSerialVector & x, const ThresholdMatrix & T, const size_t cols,  const bool Asigned, const bool xsigned) {
+ResultVector bitSerialMatrixVectorThreshold(const BitSerialMatrix & A, const BitSerialVector & x, const ThresholdMatrix & T, const bool Asigned, const bool xsigned) {
   // this could have been implemented by just calling the matrix-vector first
   // then thresholding the results, but we want more instruction-level parallelism
   // to keep the CPU functional units occupied, so the matrix-vector code is

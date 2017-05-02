@@ -20,7 +20,7 @@ bool test_conversions() {
       uint8_t * rnd_vec = new uint8_t[d];
       generateRandomVector(b, d, rnd_vec);
       BitSerialVector bsv = toBitSerialVector(rnd_vec, d, b);
-      fromBitSerialVector(bsv, d, res_chk);
+      fromBitSerialVector(bsv, res_chk);
       int res = memcmp(rnd_vec, res_chk, d);
       delete [] rnd_vec;
       delete [] res_chk;
@@ -53,7 +53,7 @@ bool test_matrix_vector() {
           generateRandomVector(b, d*d, rnd_mat);
           BitSerialVector bsv = toBitSerialVector(rnd_vec, d, b);
           BitSerialMatrix bsm = toBitSerialMatrix(rnd_mat, d, d, b);
-          AccumulateVector resvec = bitSerialMatrixVector(bsm, bsv, d, matneg, vecneg);
+          AccumulateVector resvec = bitSerialMatrixVector(bsm, bsv, matneg, vecneg);
           // manually compute golden result
           for(unsigned int i = 0; i < d; i++) {
             AccumulateElem acc = 0;
