@@ -2,39 +2,6 @@
 #include <iostream>
 using namespace std;
 
-std::ostream &operator<<(std::ostream &os, BitVector const &m) {
-  os << "BitVector of " << m.size() << " bits : {" << std::endl;
-  for(size_t i = 0; i < m.size(); i++) {
-    os << i << " = " << m.contains(i) << std::endl;
-  }
-  return os;
-}
-
-std::ostream &operator<<(std::ostream &os, BitSerialVector const &m) {
-  os << "BitVector of " << m.size() << " bits of precision " << std::endl;
-  for(size_t i = 0; i < m.size(); i++) {
-    cout << "Bit position " << i << ":" << endl;
-    os << m[i] << endl;
-  }
-  return os;
-}
-
-std::ostream &operator<<(std::ostream &os, ResultVector const &m) {
-  os << "ResultVector of " << m.size() << " elements : {" << std::endl;
-  for(size_t i = 0; i < m.size(); i++) {
-    os << i << " = " << (int) m[i] << std::endl;
-  }
-  return os;
-}
-
-std::ostream &operator<<(std::ostream &os, AccumulateVector const &m) {
-  os << "AccumulateVector of " << m.size() << " elements : {" << std::endl;
-  for(size_t i = 0; i < m.size(); i++) {
-    os << i << " = " << (int) m[i] << std::endl;
-  }
-  return os;
-}
-
 /**
 * Multiply a gemm-bitserial matrix and vector
 */

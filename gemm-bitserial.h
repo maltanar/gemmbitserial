@@ -3,15 +3,8 @@
 #include <string.h>
 #include "bitvector.h"
 #include "convert.h"
+#include "serialize.h"
 #include <ostream>
-
-/**
-* Print contents of different vector types
-*/
-std::ostream &operator<<(std::ostream &os, BitVector const &m);
-std::ostream &operator<<(std::ostream &os, BitSerialVector const &m);
-std::ostream &operator<<(std::ostream &os, ResultVector const &m);
-std::ostream &operator<<(std::ostream &os, AccumulateVector const &m);
 
 /**
 * Multiply a gemm-bitserial matrix and vector
