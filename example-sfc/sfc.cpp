@@ -53,8 +53,10 @@ int main(int argc, char const *argv[]) {
     out = pipeline(indata);
   auto end = chrono::high_resolution_clock::now();
   float uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
+  float fps = 1000000 / uscount;
   //float perf = 1000000 * (d*2 / uscount);
   cout << "Time for SFC inference: " << uscount << " microseconds" << endl;
+  cout << "Frames per second: " << fps << endl;
   //cout << "Performance for and_cardinality: " << perf << " binary ops per second" << endl;
 
   for(size_t i = 0; i < out.size(); i++) {
