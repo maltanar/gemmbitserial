@@ -10,6 +10,7 @@ std::ostream &operator<<(std::ostream &os, BitSerialVector const &m);
 std::ostream &operator<<(std::ostream &os, BitSerialMatrix const &m);
 std::ostream &operator<<(std::ostream &os, ResultVector const &m);
 std::ostream &operator<<(std::ostream &os, AccumulateVector const &m);
+std::ostream &operator<<(std::ostream &os, FloatVector const &m);
 
 /**
 * de/serialize gemm-bitserial types from/to binary streams

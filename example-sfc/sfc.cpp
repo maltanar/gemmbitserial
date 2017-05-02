@@ -10,8 +10,8 @@ using namespace std;
 BitSerialMatrix l0_w, l1_w, l2_w, l3_w;
 
 // naive LinearLayer implementation, int in, float params and out
-vector<float> LinearLayer(const AccumulateVector & in, const vector<float> & mul, const vector<float> & add) {
-  vector<float> ret;
+FloatVector LinearLayer(const AccumulateVector & in, const FloatVector & mul, const FloatVector & add) {
+  FloatVector ret;
   size_t scale_param_ind = 0;
   const size_t scale_param_wraparound = mul.size() - 1;
   for(size_t i = 0; i < in.size(); i++) {
@@ -21,7 +21,7 @@ vector<float> LinearLayer(const AccumulateVector & in, const vector<float> & mul
   return ret;
 }
 
-vector<float> pipeline(const AccumulateVector & in) {
+FloatVector pipeline(const AccumulateVector & in) {
   ResultVector in_quantized = threshold(in, in_t);
   BitSerialVector in_bs = toBitSerialVector(in_quantized.data(), in_quantized.size(), 2);
   // layer 0 (first layer)
@@ -35,7 +35,7 @@ vector<float> pipeline(const AccumulateVector & in) {
   BitSerialVector res2_bs = toBitSerialVector(res2_quantized.data(), res2_quantized.size(), 2);
   // layer 3 (output layer)
   AccumulateVector res3 = bitSerialMatrixVector(l3_w, res2_bs, true, false);
-  vector<float> ret = LinearLayer(res3, l3_scale, l3_shift);
+  FloatVector ret = LinearLayer(res3, l3_scale, l3_shift);
   return ret;
 }
 
@@ -54,14 +54,11 @@ int main(int argc, char const *argv[]) {
   auto end = chrono::high_resolution_clock::now();
   float uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
   float fps = 1000000 / uscount;
-  //float perf = 1000000 * (d*2 / uscount);
   cout << "Time for SFC inference: " << uscount << " microseconds" << endl;
   cout << "Frames per second: " << fps << endl;
-  //cout << "Performance for and_cardinality: " << perf << " binary ops per second" << endl;
 
-  for(size_t i = 0; i < out.size(); i++) {
-    cout << i << " : " << out[i] << endl;
-  }
+  cout << "Returned result vector: " << endl;
+  cout << out << endl;
 
   return 0;
 }

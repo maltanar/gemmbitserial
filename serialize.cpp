@@ -42,6 +42,14 @@ std::ostream &operator<<(std::ostream &os, AccumulateVector const &m) {
   return os;
 }
 
+std::ostream &operator<<(std::ostream &os, FloatVector const &m) {
+  os << "FloatVector of " << m.size() << " elements : {" << std::endl;
+  for(size_t i = 0; i < m.size(); i++) {
+    os << i << " = " << (float) m[i] << std::endl;
+  }
+  return os;
+}
+
 void serialize(std::ostream &os, MyBitVector const &m) {
   os.write((const char *) &(m.m_numBits), sizeof(size_t));
   os.write((const char *) &(m.m_bufWordBits), sizeof(size_t));

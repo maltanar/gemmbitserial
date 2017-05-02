@@ -1,3 +1,4 @@
+#include <cassert>
 #include "convert.h"
 
 /**
@@ -60,4 +61,53 @@ void fromBitSerialMatrix(const BitSerialMatrix & mat, uint8_t * ret) {
   for(size_t r = 0; r < rows; r++) {
     fromBitSerialVector(mat[r], &ret[r*cols]);
   }
+}
+
+/**
+* Convert a numpy array into different gemm-bitserial formats
+*/
+
+BitSerialVector toBitSerialVector(const cnpy::NpyArray & vec, const size_t bits) {
+  assert(vec.word_size == sizeof(uint8_t));
+  assert(vec.shape.size() == 1);
+  size_t n = vec.shape[0];
+  return toBitSerialVector((const uint8_t *)vec.data, n, bits);
+}
+
+BitSerialMatrix toBitSerialMatrix(const cnpy::NpyArray & mat, size_t bits) {
+  assert(mat.word_size == sizeof(uint8_t));
+  assert(mat.shape.size() == 2);
+  assert(mat.fortran_order == false);
+  size_t rows = mat.shape[0];
+  size_t cols = mat.shape[1];
+  return toBitSerialMatrix((const uint8_t *) mat.data, rows, cols, bits);
+}
+
+ThresholdMatrix toThresholdMatrix(const cnpy::NpyArray & mat) {
+  assert(mat.word_size == sizeof(AccumulateElem));
+  assert(mat.shape.size() == 2);
+  assert(mat.fortran_order == false);
+  size_t num_thres_levels = mat.shape[0];
+  size_t num_channels = mat.shape[1];
+  AccumulateElem * dataptr = (AccumulateElem *) mat.data;
+  ThresholdMatrix ret;
+  for(size_t t = 0; t < num_thres_levels; t++) {
+    AccumulateVector ctl;
+    for(size_t c = 0; c < num_channels; c++) {
+      ctl.push_back(dataptr[t * num_channels + c]);
+    }
+  }
+  return ret;
+}
+
+FloatVector toFloatVector(const cnpy::NpyArray & vec) {
+  assert(vec.word_size == sizeof(float));
+  assert(vec.shape.size() == 1);
+  size_t n = vec.shape[0];
+  FloatVector ret;
+  float * dataptr = (float *) vec.data;
+  for(size_t i = 0; i < n; i++) {
+    ret.push_back(dataptr[i]);
+  }
+  return ret;
 }
