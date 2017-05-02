@@ -2,6 +2,7 @@
 #include <vector>
 #include <stdint.h>
 #include <string.h>
+#include <iostream>
 
 class MyBitVector {
 public:
@@ -12,6 +13,9 @@ public:
   void clear();
   bool contains(uint64_t index) const;
   uint64_t and_cardinality(const MyBitVector & rhs) const;
+
+  friend void serialize(std::ostream &os, MyBitVector const &m);
+  friend MyBitVector deserializeMyBitVector(std::istream &is);
 
 protected:
   std::vector<uint64_t> m_buf;

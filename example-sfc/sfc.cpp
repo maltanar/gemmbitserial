@@ -42,9 +42,6 @@ vector<float> pipeline(const AccumulateVector & in) {
 int main(int argc, char const *argv[]) {
   // prepare network parameters
   l0_w = toBitSerialMatrix((uint8_t*)w0, 256, 784, 2);
-
-
-
   l1_w = toBitSerialMatrix((uint8_t*)w1, 256, 256, 2);
   l2_w = toBitSerialMatrix((uint8_t*)w2, 256, 256, 2);
   l3_w = toBitSerialMatrix((uint8_t*)w3, 10, 256, 2);
