@@ -1,3 +1,4 @@
+#include <cassert>
 #include <iostream>
 #include <chrono>
 #include "gemm-bitserial.h"
@@ -12,6 +13,7 @@ int main(int argc, char const *argv[]) {
   size_t reps_mm = 10;
   uint8_t * rnd_mat = new uint8_t[d*d];
   uint8_t * rnd_vec = new uint8_t[d];
+  assert(rnd_mat != 0 && rnd_vec != 0);
   generateRandomVector(b, d, rnd_vec);
   generateRandomVector(b, d*d, rnd_mat);
   BitSerialVector bsv = toBitSerialVector(rnd_vec, d, b);

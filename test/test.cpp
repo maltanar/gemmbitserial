@@ -1,3 +1,4 @@
+#include <cassert>
 #include <iostream>
 #include <time.h>
 #include <cstdlib>
@@ -18,6 +19,7 @@ bool test_conversions() {
     for(auto & d: param_dims) {
       uint8_t * res_chk = new uint8_t[d];
       uint8_t * rnd_vec = new uint8_t[d];
+      assert(res_chk != 0 && rnd_vec != 0);
       generateRandomVector(b, d, rnd_vec);
       BitSerialVector bsv = toBitSerialVector(rnd_vec, d, b);
       fromBitSerialVector(bsv, res_chk);
@@ -48,6 +50,7 @@ bool test_matrix_vector() {
         for(auto & vecneg: param_allow_neg) {
           uint8_t * rnd_mat = new uint8_t[d*d];
           uint8_t * rnd_vec = new uint8_t[d];
+          assert(rnd_mat != 0 && rnd_vec != 0);
           AccumulateVector res_golden;
           generateRandomVector(b, d, rnd_vec);
           generateRandomVector(b, d*d, rnd_mat);
