@@ -21,7 +21,10 @@ void MyBitVector::clear() {
 }
 
 void MyBitVector::add(uint64_t index) {
-  m_buf[getWPos(index)] |= (1L << getBPos(index));
+  const uint64_t w = m_buf[getWPos(index)];
+  uint64_t wm = 1;
+  wm = wm << getBPos(index);
+  m_buf[getWPos(index)] = w | wm;
 }
 
 bool MyBitVector::contains(uint64_t index) const {
