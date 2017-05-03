@@ -1,16 +1,26 @@
+
 #include "gemm-bitserial.h"
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <string>
+#include "indata.h"
 using namespace std;
 
-#include "sfc-data.h"
-#include "sfc-w.h"
+// network params as global variables
 
-BitSerialMatrix l0_w, l1_w, l2_w, l3_w;
+ThresholdMatrix CPUThresholdLayer_0_T;
+BitSerialMatrix CPUBitSerialMatrixVectorThresholdLayer_2_W;
+ThresholdMatrix CPUBitSerialMatrixVectorThresholdLayer_2_T;
+BitSerialMatrix CPUBitSerialMatrixVectorThresholdLayer_4_W;
+ThresholdMatrix CPUBitSerialMatrixVectorThresholdLayer_4_T;
+BitSerialMatrix CPUBitSerialMatrixVectorThresholdLayer_6_W;
+ThresholdMatrix CPUBitSerialMatrixVectorThresholdLayer_6_T;
+BitSerialMatrix CPUBitSerialMatrixVectorLayer_8_W;
+FloatVector CPULinearLayer_10_A, CPULinearLayer_10_B;
 
 // naive LinearLayer implementation, int in, float params and out
-FloatVector LinearLayer(const AccumulateVector & in, const FloatVector & mul, const FloatVector & add) {
+FloatVector linearLayer(const AccumulateVector & in, const FloatVector & mul, const FloatVector & add) {
   FloatVector ret;
   size_t scale_param_ind = 0;
   const size_t scale_param_wraparound = mul.size() - 1;
@@ -21,30 +31,50 @@ FloatVector LinearLayer(const AccumulateVector & in, const FloatVector & mul, co
   return ret;
 }
 
-FloatVector pipeline(const AccumulateVector & in) {
-  ResultVector in_quantized = threshold(in, in_t);
-  BitSerialVector in_bs = toBitSerialVector(in_quantized.data(), in_quantized.size(), 2);
-  // layer 0 (first layer)
-  ResultVector res0_quantized = bitSerialMatrixVectorThreshold(l0_w, in_bs, l0_t, true, false);
-  BitSerialVector res0_bs = toBitSerialVector(res0_quantized.data(), res0_quantized.size(), 2);
-  // layer 1
-  ResultVector res1_quantized = bitSerialMatrixVectorThreshold(l1_w, res0_bs, l1_t, true, false);
-  BitSerialVector res1_bs = toBitSerialVector(res1_quantized.data(), res1_quantized.size(), 2);
-  // layer 2
-  ResultVector res2_quantized = bitSerialMatrixVectorThreshold(l2_w, res1_bs, l2_t, true, false);
-  BitSerialVector res2_bs = toBitSerialVector(res2_quantized.data(), res2_quantized.size(), 2);
-  // layer 3 (output layer)
-  AccumulateVector res3 = bitSerialMatrixVector(l3_w, res2_bs, true, false);
-  FloatVector ret = LinearLayer(res3, l3_scale, l3_shift);
-  return ret;
+FloatVector pipeline(const AccumulateVector & data_in) {
+  // neural network pipeline
+  
+  // layer: CPUThresholdLayer_0
+  ResultVector BufferLayer_1 = threshold(data_in, CPUThresholdLayer_0_T);
+  // layer: CPUBitSerialMatrixVectorThresholdLayer_2
+  BitSerialVector BufferLayer_1_bs =  toBitSerialVector(BufferLayer_1.data(), BufferLayer_1.size(), 2);
+  ResultVector BufferLayer_3 = bitSerialMatrixVectorThreshold(CPUBitSerialMatrixVectorThresholdLayer_2_W, BufferLayer_1_bs, CPUBitSerialMatrixVectorThresholdLayer_2_T, true, false);
+  
+  // layer: CPUBitSerialMatrixVectorThresholdLayer_4
+  BitSerialVector BufferLayer_3_bs =  toBitSerialVector(BufferLayer_3.data(), BufferLayer_3.size(), 2);
+  ResultVector BufferLayer_5 = bitSerialMatrixVectorThreshold(CPUBitSerialMatrixVectorThresholdLayer_4_W, BufferLayer_3_bs, CPUBitSerialMatrixVectorThresholdLayer_4_T, true, false);
+  
+  // layer: CPUBitSerialMatrixVectorThresholdLayer_6
+  BitSerialVector BufferLayer_5_bs =  toBitSerialVector(BufferLayer_5.data(), BufferLayer_5.size(), 2);
+  ResultVector BufferLayer_7 = bitSerialMatrixVectorThreshold(CPUBitSerialMatrixVectorThresholdLayer_6_W, BufferLayer_5_bs, CPUBitSerialMatrixVectorThresholdLayer_6_T, true, false);
+  
+  // layer: CPUBitSerialMatrixVectorLayer_8
+  BitSerialVector BufferLayer_7_bs =  toBitSerialVector(BufferLayer_7.data(), BufferLayer_7.size(), 2);
+  AccumulateVector BufferLayer_9 = bitSerialMatrixVector(CPUBitSerialMatrixVectorLayer_8_W, BufferLayer_7_bs, true, false);
+  
+  // layer: CPULinearLayer_10
+  FloatVector data_out = linearLayer(BufferLayer_9, CPULinearLayer_10_A, CPULinearLayer_10_B);
+  
+  return data_out;
+}
+
+cnpy::NpyArray loadNpzParam(string vname) {
+  return cnpy::npz_load("params.npz", vname);
 }
 
 int main(int argc, char const *argv[]) {
   // prepare network parameters
-  l0_w = toBitSerialMatrix((uint8_t*)w0, 256, 784, 2);
-  l1_w = toBitSerialMatrix((uint8_t*)w1, 256, 256, 2);
-  l2_w = toBitSerialMatrix((uint8_t*)w2, 256, 256, 2);
-  l3_w = toBitSerialMatrix((uint8_t*)w3, 10, 256, 2);
+  
+  CPUThresholdLayer_0_T = toThresholdMatrix(loadNpzParam("CPUThresholdLayer_0_T"));
+  CPUBitSerialMatrixVectorThresholdLayer_2_W = toBitSerialMatrix(loadNpzParam("CPUBitSerialMatrixVectorThresholdLayer_2_W"), 2);
+  CPUBitSerialMatrixVectorThresholdLayer_2_T = toThresholdMatrix(loadNpzParam("CPUBitSerialMatrixVectorThresholdLayer_2_T"));
+  CPUBitSerialMatrixVectorThresholdLayer_4_W = toBitSerialMatrix(loadNpzParam("CPUBitSerialMatrixVectorThresholdLayer_4_W"), 2);
+  CPUBitSerialMatrixVectorThresholdLayer_4_T = toThresholdMatrix(loadNpzParam("CPUBitSerialMatrixVectorThresholdLayer_4_T"));
+  CPUBitSerialMatrixVectorThresholdLayer_6_W = toBitSerialMatrix(loadNpzParam("CPUBitSerialMatrixVectorThresholdLayer_6_W"), 2);
+  CPUBitSerialMatrixVectorThresholdLayer_6_T = toThresholdMatrix(loadNpzParam("CPUBitSerialMatrixVectorThresholdLayer_6_T"));
+  CPUBitSerialMatrixVectorLayer_8_W = toBitSerialMatrix(loadNpzParam("CPUBitSerialMatrixVectorLayer_8_W"), 2);
+  CPULinearLayer_10_A = toFloatVector(loadNpzParam("CPULinearLayer_10_A"));
+  CPULinearLayer_10_B = toFloatVector(loadNpzParam("CPULinearLayer_10_B"));
   int reps = 100;
   vector<float> out;
 
