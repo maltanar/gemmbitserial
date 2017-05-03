@@ -96,6 +96,7 @@ ThresholdMatrix toThresholdMatrix(const cnpy::NpyArray & mat) {
     for(size_t c = 0; c < num_channels; c++) {
       ctl.push_back(dataptr[t * num_channels + c]);
     }
+    ret.push_back(ctl);
   }
   return ret;
 }
