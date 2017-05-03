@@ -9,7 +9,7 @@ int main(int argc, char const *argv[]) {
   size_t b = 2;
   size_t d = 1024;
   size_t thres_levels = 3;
-  size_t reps = 100;
+  size_t reps = 10000;
   size_t reps_mm = 10;
   uint8_t * rnd_mat = new uint8_t[d*d];
   uint8_t * rnd_vec = new uint8_t[d];
