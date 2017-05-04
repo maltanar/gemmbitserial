@@ -38,7 +38,8 @@ int main(int argc, char const *argv[]) {
   uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
   perf = 1000000 * (d*d*b*b*2 / uscount);
   cout << "Time for single matrix-vector: " << uscount << " microseconds" << endl;
-  cout << "Performance for matrix-vector: " << perf/1000000000.0 << " GOPS per second" << endl;
+  cout << "Performance for matrix-vector: " << perf/1000000000.0 << " binary GOPS per second" << endl;
+  cout << "Performance for matrix-vector: " << perf/(b*b*1000000000.0) << " lowprec (" << b << " bit) GOPS per second" << endl;
   // matrix-matrix
   start = chrono::high_resolution_clock::now();
   AccumulateMatrix resmat;
@@ -48,7 +49,8 @@ int main(int argc, char const *argv[]) {
   uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps_mm;
   perf = 1000000 * (d*d*d*b*b*2 / uscount);
   cout << "Time for single matrix-matrix: " << uscount << " microseconds" << endl;
-  cout << "Performance for matrix-matrix: " << perf/1000000000.0 << " GOPS per second" << endl;
+  cout << "Performance for matrix-matrix: " << perf/1000000000.0 << " binary GOPS per second" << endl;
+  cout << "Performance for matrix-matrix: " << perf/(b*b*1000000000.0) << " lowprec (" << b << " bit) GOPS per second" << endl;
   // matrix-vector-threshold
   ThresholdMatrix T;
 
@@ -67,7 +69,8 @@ int main(int argc, char const *argv[]) {
   uscount = chrono::duration_cast<std::chrono::microseconds>(end-start).count() / (float)reps;
   perf = 1000000 * (d*d*b*b*2 / uscount);
   cout << "Time for single matrix-vector-threshold: " << uscount << " microseconds" << endl;
-  cout << "Performance for matrix-vector-threshold, not counting threshold ops: " << perf/1000000000.0 << " GOPS per second" << endl;
+  cout << "Performance for matrix-vector-threshold, not counting threshold ops: " << perf/1000000000.0 << " binary GOPS per second" << endl;
+  cout << "Performance for matrix-vector-threshold, not counting threshold ops: " << perf/(b*b*1000000000.0) << " lowprec (" << b << " bit) GOPS per second" << endl;
 
   delete [] rnd_mat;
   delete [] rnd_vec;
