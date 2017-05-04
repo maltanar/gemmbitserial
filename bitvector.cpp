@@ -48,7 +48,7 @@ uint64_t MyBitVector::and_cardinality(const MyBitVector & rhs) const {
     res += __builtin_popcountll(bufptrA[i+2] & bufptrB[i+2]);
     res += __builtin_popcountll(bufptrA[i+3] & bufptrB[i+3]);
   }
-  for(size_t i = 0; i < rm; i++) {
+  for(size_t i = rmd; i < m_numWords; i++) {
     res += __builtin_popcountll(bufptrA[i] & bufptrB[i]);
   }
 
