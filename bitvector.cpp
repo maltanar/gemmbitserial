@@ -1,10 +1,8 @@
 #include "bitvector.h"
 #include <cmath>
-
 #include <stdint.h>
 #include <stddef.h>
 
-#include "libpopcnt.h"
 
 MyBitVector::MyBitVector(size_t numBits) {
   m_bufWordBits = (sizeof(uint64_t) * 8);
@@ -45,13 +43,13 @@ uint64_t MyBitVector::and_cardinality(const MyBitVector & rhs) const {
   const size_t rm = m_numWords % 4;
   const size_t rmd = m_numWords - rm;
   for(size_t i = 0; i < rmd; i+=4) {
-    res += popcnt64(bufptrA[i] & bufptrB[i]);
-    res += popcnt64(bufptrA[i+1] & bufptrB[i+1]);
-    res += popcnt64(bufptrA[i+2] & bufptrB[i+2]);
-    res += popcnt64(bufptrA[i+3] & bufptrB[i+3]);
+    res += __builtin_popcountll(bufptrA[i] & bufptrB[i]);
+    res += __builtin_popcountll(bufptrA[i+1] & bufptrB[i+1]);
+    res += __builtin_popcountll(bufptrA[i+2] & bufptrB[i+2]);
+    res += __builtin_popcountll(bufptrA[i+3] & bufptrB[i+3]);
   }
   for(size_t i = 0; i < rm; i++) {
-    res += popcnt64(bufptrA[i] & bufptrB[i]);
+    res += __builtin_popcountll(bufptrA[i] & bufptrB[i]);
   }
 
   return res;
