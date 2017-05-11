@@ -81,6 +81,23 @@ BitSerialMatrix toBitSerialMatrix(const T* vec, const size_t rows, const size_t 
   return ret;
 }
 
+template <typename T>
+BitSerialMatrix toBitSerialMatrix_transpose(const T* vec, const size_t rows, const size_t cols, const size_t bits) {
+  BitSerialMatrix ret;
+  uint8_t * buf = new uint8_t[cols];
+
+  for(size_t r = 0; r < rows; r++) {
+    for(size_t c = 0; c < cols; c++) {
+      buf[c] = (uint8_t) vec[c * rows + r];
+    }
+    BitSerialVector rowVec = toBitSerialVector(buf, cols, bits);
+    ret.push_back(rowVec);
+  }
+
+  delete [] buf;
+  return ret;
+}
+
 
 /**
 * Convert a buffer of unsigned char values into a gemm-bitserial matrix
