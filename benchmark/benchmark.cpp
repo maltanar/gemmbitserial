@@ -194,6 +194,9 @@ int main(int argc, char const *argv[]) {
 
   for(auto &d: dims) {
     benchmark_andcardinality(d, 5);
+  }
+
+  for(auto &d: dims) {
     benchmark_unrolledpopcount(d, 5);
   }
 
