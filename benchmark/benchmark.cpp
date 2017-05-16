@@ -122,6 +122,67 @@ void benchmark_matmat(size_t rowsA, size_t colsA, size_t colsB, size_t abits, si
   cout << "Performance for " << bench_name << ": " << perf << " GOPS per second" << endl;
 }
 
+void benchmark_caffenet(float secs) {
+  string bench_name = "CaffeNet matrices";
+  const int caffenet_gemm_sizes[] = {
+      96, 363, 3025,
+      256, 2400, 729,
+      384, 2304, 169,
+      384, 3456, 169,
+      256, 3456, 169,
+      4096, 9216, 1,
+      4096, 4096, 1,
+      1000, 4096, 1
+  };
+  double opcount = 0;
+  size_t wbits = 2;
+  size_t abits = 2;
+  const std::size_t num_caffenet_gemms =
+      sizeof(caffenet_gemm_sizes) / (3 * sizeof(caffenet_gemm_sizes[0]));
+  // prepare workload
+  std::vector<BitSerialMatrix> caffenet_gemms_A, caffenet_gemms_B;
+  for (std::size_t i = 0; i < num_caffenet_gemms; i++) {
+    size_t rows = caffenet_gemm_sizes[3 * i + 0];
+    size_t depth = caffenet_gemm_sizes[3 * i + 1];
+    size_t cols = caffenet_gemm_sizes[3 * i + 2];
+    opcount += 2*rows*depth*cols;
+    uint8_t * rnd_matA = new uint8_t[rows*depth];
+    uint8_t * rnd_matB = new uint8_t[depth*cols];
+    generateRandomVector(wbits, rows*depth, rnd_matA);
+    generateRandomVector(abits, depth*cols, rnd_matB);
+    caffenet_gemms_A.push_back(toBitSerialMatrix(rnd_matA, rows, depth, wbits));
+    caffenet_gemms_B.push_back(toBitSerialMatrix(rnd_matB, cols, depth, abits));
+    delete [] rnd_matA;
+    delete [] rnd_matB;
+  }
+  AccumulateMatrix res;
+
+  cout << "======================================================================" << endl;
+  cout << bench_name << " for " << secs << " seconds..." << endl;
+  unsigned int reps = 0;
+  auto start = chrono::high_resolution_clock::now();
+  auto end = chrono::high_resolution_clock::now();
+  while (chrono::duration_cast<std::chrono::seconds>(end-start).count() < secs) {
+    // =============== start of benchmark kernel =============
+    for(size_t i = 0; i < num_caffenet_gemms; i++) {
+      res = bitSerialMatrixMatrix(caffenet_gemms_A[i], caffenet_gemms_B[i]);
+    }
+    // =============== end of benchmark kernel ================
+    reps += 1;
+    end = chrono::high_resolution_clock::now();
+    // ignore the first iteration, it's just for warmup
+    if(reps == 1) {
+      start = end;
+    }
+  }
+  cout << "Completed " << reps << " iterations" << endl;
+  cout << "Size of returned result: " << res.size() << endl;
+  double nscount = chrono::duration_cast<std::chrono::nanoseconds>(end-start).count() / (double)reps;
+  double perf = opcount / (nscount); // billion bit operations per second
+  cout << "Time for a single " << bench_name << ": " << nscount << " nanoseconds" << endl;
+  cout << "Performance for " << bench_name << ": " << perf << " GOPS per second" << endl;
+}
+
 
 
 int main(int argc, char const *argv[]) {
@@ -129,10 +190,13 @@ int main(int argc, char const *argv[]) {
   vector<size_t> mdims {256, 1024, 8192};
   vector<size_t> dims {256, 1024, 2048, 4096, 8192, 16384, 32768, 65536};
 
+  benchmark_caffenet(20);
+
   for(auto &d: dims) {
     benchmark_andcardinality(d, 5);
     benchmark_unrolledpopcount(d, 5);
   }
+
   for(auto &bm: bits) {
     for(auto &bv: bits) {
       for(auto &r: mdims) {
