@@ -10,7 +10,6 @@ AccumulateVector bitSerialMatrixVector(const BitSerialMatrix & A, const BitSeria
   const size_t Abits = A[0].size();
   const size_t xbits = x.size();
   AccumulateVector ret(rows, 0);
-  #pragma omp parallel for
   for(size_t r = 0; r < rows; r++) {
     AccumulateElem rowres = 0;
     for(size_t Abit = 0; Abit < Abits; Abit++) {
@@ -64,7 +63,6 @@ ResultVector bitSerialMatrixVectorThreshold(const BitSerialMatrix & A, const Bit
   const size_t numThresChans = T[0].size();
   ResultVector ret;
   ResultElem postthres;
-  #pragma omp parallel for
   for(size_t r = 0; r < rows; r++) {
     AccumulateElem rowres = 0;
     for(size_t Abit = 0; Abit < Abits; Abit++) {
