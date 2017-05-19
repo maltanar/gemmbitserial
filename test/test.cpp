@@ -24,13 +24,13 @@ void generateRandomVector(size_t bits, size_t dim, uint8_t * ret) {
 }
 
 void naive_int_gemm(uint8_t * lhs, uint8_t * rhs, int32_t * res, int rows, int depth, int cols) {
-  for(int i = 0; i < rows; i++) {
-    for(int k = 0; k < cols; k++) {
+  for(int k = 0; k < cols; k++) {
+    for(int i = 0; i < rows; i++) {
       int32_t acc = 0;
       for(int j = 0; j < depth; j++) {
         acc += lhs[i * depth + j] * rhs[k * depth + j];
       }
-      res[i * cols + k] = acc;
+      res[k * rows + i] = acc;
     }
   }
 }
@@ -108,6 +108,7 @@ bool test_conversions() {
 bool test_matrix_matrix() {
   vector<size_t> param_bits {1, 2, 3, 4};
   vector<size_t> param_dims {16, 17, 31, 32, 100, 177, 256};
+
   deque<bool> param_allow_neg {false, true};
   unsigned int numConfigs = 0, ok = 0, nok = 0;
   for(auto & b: param_bits) {
@@ -126,6 +127,10 @@ bool test_matrix_matrix() {
       toBitSerialMatrix(rnd_mat_a, &lhs);
       toBitSerialMatrix(rnd_mat_b, &rhs);
       gemmBitSerial(&lhs, &rhs, res_mat);
+      /*printmatrix(rnd_mat_a, d, d*2);
+      printmatrix(rnd_mat_b, d*3, d*2);
+      printmatrix(res_mat_golden, d*3, d);
+      printmatrix(res_mat, d*3, d);*/
 
       int rbytes = d*d*3*sizeof(int32_t);
       int res = memcmp(res_mat, res_mat_golden, rbytes);
@@ -153,7 +158,7 @@ bool test_matrix_matrix() {
 int main(int argc, char const *argv[]) {
   srand(time(NULL));
   bool all_ok = true;
-  all_ok &= test_conversions();
+  //all_ok &= test_conversions();
   all_ok &= test_matrix_matrix();
 
   if(all_ok) {
