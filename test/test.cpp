@@ -2,35 +2,100 @@
 #include <iostream>
 #include <time.h>
 #include <cstdlib>
+#include <vector>
 #include <deque>
-#include "gemm-bitserial.h"
+#include "gemmbitserial.hpp"
 
 using namespace std;
+using namespace gemmbitserial;
 
 #define VERBOSE_TEST(x) ;
 //#define VERBOSE_TEST(x) x
 
+/**
+* Generate a random vector with given dimension and number of bits <= 8
+*/
+void generateRandomVector(size_t bits, size_t dim, uint8_t * ret) {
+  uint8_t minVal = 0;
+  uint8_t maxVal = (1 << bits);
+  for(size_t i = 0; i < dim; i++) {
+    ret[i] = rand() % maxVal;
+  }
+}
+
+void naive_int_gemm(uint8_t * lhs, uint8_t * rhs, int32_t * res, int rows, int depth, int cols) {
+  for(int i = 0; i < rows; i++) {
+    for(int k = 0; k < cols; k++) {
+      int32_t acc = 0;
+      for(int j = 0; j < depth; j++) {
+        acc += lhs[i * depth + j] * rhs[k * depth + j];
+      }
+      res[i * cols + k] = acc;
+    }
+  }
+}
+
+template <typename T>
+void printmatrix(T * mat, int rows, int cols) {
+  for(int i = 0; i < rows; i++) {
+    for(int j = 0; j < cols; j++) {
+      cout << (int) mat[i * cols + j] << " ";
+    }
+    cout << endl;
+  }
+  cout << endl;
+}
+
+template <typename T>
+void printmatrixdiff(T * mat1, T* mat2, int rows, int cols) {
+  for(int i = 0; i < rows; i++) {
+    for(int j = 0; j < cols; j++) {
+      if(mat1[i * cols + j] != mat2[i * cols + j]) {
+        cout << "Difference at (i,j) = " << i << " " << j << " Mat1: " << (int)mat1[i * cols + j] << " Mat2: " << mat2[i * cols + j] << endl;
+      }
+    }
+  }
+  cout << endl;
+}
+
+void printBitSerialMatrix(BitSerialMatrix * bsm) {
+  cout << "BitSerialMatrix with bits " << bsm->nbits << " rows " << bsm->nrows << " cols " << bsm->ncols << endl;
+  for(int b = 0; b < bsm->nbits; b++) {
+    cout << "bit " << b << ":" << endl;
+    for(int r = 0; r < bsm->nrows; r++) {
+      for(int c = 0; c < bsm->ncols; c++) {
+        cout << (bsm->get(b,r,c) ? 1 : 0) << " ";
+      }
+      cout << endl << endl;
+    }
+  }
+}
+
 bool test_conversions() {
-  vector<size_t> param_bits {1, 2, 3, 4, 5, 6, 7, 8};
-  vector<size_t> param_dims {16, 32, 100, 1024, 4096};
+  vector<size_t> param_bits {1, 2, 3, 4};
+  vector<size_t> param_dims {16, 17, 32, 77, 100, 1024, 4096};
   unsigned int numConfigs = 0, ok = 0, nok = 0;
 
   for(auto & b: param_bits) {
     for(auto & d: param_dims) {
-      uint8_t * res_chk = new uint8_t[d];
-      uint8_t * rnd_vec = new uint8_t[d];
+      uint8_t * res_chk = new uint8_t[d*d];
+      uint8_t * rnd_vec = new uint8_t[d*d];
       assert(res_chk != 0 && rnd_vec != 0);
-      generateRandomVector(b, d, rnd_vec);
-      BitSerialVector bsv = toBitSerialVector(rnd_vec, d, b);
-      fromBitSerialVector(bsv, res_chk);
+      generateRandomVector(b, d*d, rnd_vec);
+
+      BitSerialMatrix bsm;
+      allocBitSerialMatrix(&bsm, b, d, d, false);
+      toBitSerialMatrix(rnd_vec, &bsm);
+      fromBitSerialMatrix(&bsm, res_chk);
       int res = memcmp(rnd_vec, res_chk, d);
-      delete [] rnd_vec;
-      delete [] res_chk;
       if(res == 0) {
         ok++;
       } else {
         nok++;
       }
+      delete [] rnd_vec;
+      delete [] res_chk;
+      deallocBitSerialMatrix(&bsm);
       numConfigs++;
       VERBOSE_TEST(cout << "Bits = " << b << " dim = " << d << " result = " << res << endl);
     }
@@ -39,80 +104,57 @@ bool test_conversions() {
   return ok == numConfigs;
 }
 
-bool test_matrix_vector() {
-  vector<size_t> param_bits {1, 2, 3, 4, 5, 6, 7, 8};
-  vector<size_t> param_dims {16, 32, 100, 256};
+
+bool test_matrix_matrix() {
+  vector<size_t> param_bits {1, 2, 3, 4};
+  vector<size_t> param_dims {16, 17, 31, 32, 100, 177, 256};
   deque<bool> param_allow_neg {false, true};
   unsigned int numConfigs = 0, ok = 0, nok = 0;
   for(auto & b: param_bits) {
     for(auto & d: param_dims) {
-      for(auto & matneg: param_allow_neg) {
-        for(auto & vecneg: param_allow_neg) {
-          uint8_t * rnd_mat = new uint8_t[d*d];
-          uint8_t * rnd_vec = new uint8_t[d];
-          assert(rnd_mat != 0 && rnd_vec != 0);
-          AccumulateVector res_golden;
-          generateRandomVector(b, d, rnd_vec);
-          generateRandomVector(b, d*d, rnd_mat);
-          BitSerialVector bsv = toBitSerialVector(rnd_vec, d, b);
-          BitSerialMatrix bsm = toBitSerialMatrix(rnd_mat, d, d, b);
-          AccumulateVector resvec = bitSerialMatrixVector(bsm, bsv, matneg, vecneg);
-          // manually compute golden result
-          for(unsigned int i = 0; i < d; i++) {
-            AccumulateElem acc = 0;
-            for(unsigned int j = 0; j < d; j++) {
-              int32_t matelem_adj = rnd_mat[i * d + j];
-              int32_t vecelem_adj = rnd_vec[j];
-              if(matneg && ((matelem_adj & (1 << (b-1))) != 0) ) {
-                matelem_adj -= 1 << b;
-              }
-              if(vecneg && ((vecelem_adj & (1 << (b-1))) != 0) ) {
-                vecelem_adj -= 1 << b;
-              }
-              acc += matelem_adj * vecelem_adj;
-            }
-            res_golden.push_back(acc);
-          }
-          int res = (res_golden == resvec) ? 0 : 1;
-          delete [] rnd_vec;
-          delete [] rnd_mat;
-          if(res == 0) {
-            ok++;
-          } else {
-            nok++;
-          }
-          numConfigs++;
-          VERBOSE_TEST(cout << "Bits = " << b << " dim = " << d << " matneg = " << matneg << " vecneg = " << vecneg << " result = " << res << endl);
-        }
+      uint8_t * rnd_mat_a = new uint8_t[d*d*2];
+      uint8_t * rnd_mat_b = new uint8_t[2*d*d*3];
+      int32_t * res_mat = new int32_t[d*d*3];
+      int32_t * res_mat_golden = new int32_t[d*d*3];
+      generateRandomVector(b, d*d*2, rnd_mat_a);
+      generateRandomVector(b, 2*d*d*3, rnd_mat_b);
+      naive_int_gemm(rnd_mat_a, rnd_mat_b, res_mat_golden, d, 2*d, d*3);
+
+      BitSerialMatrix lhs, rhs;
+      allocBitSerialMatrix(&lhs, b, d, 2*d, false);
+      allocBitSerialMatrix(&rhs, b, 3*d, 2*d, false);
+      toBitSerialMatrix(rnd_mat_a, &lhs);
+      toBitSerialMatrix(rnd_mat_b, &rhs);
+      gemmBitSerial(&lhs, &rhs, res_mat);
+
+      int rbytes = d*d*3*sizeof(int32_t);
+      int res = memcmp(res_mat, res_mat_golden, rbytes);
+      if(res == 0) {
+        ok++;
+      } else {
+        nok++;
+        printmatrixdiff(res_mat, res_mat_golden, 3*d, d);
       }
+      delete [] rnd_mat_a;
+      delete [] rnd_mat_b;
+      delete [] res_mat;
+      delete [] res_mat_golden;
+      deallocBitSerialMatrix(&lhs);
+      deallocBitSerialMatrix(&rhs);
+      numConfigs++;
+      VERBOSE_TEST(cout << "Bits = " << b << " dim = " << d << " result = " << res << endl);
+
     }
   }
-  cout << "Matrix vector multiplication tests: " << ok << " OK, " << nok << " NOK" << endl;
+  cout << "Matrix matrix multiplication tests: " << ok << " OK, " << nok << " NOK" << endl;
   return ok == numConfigs;
 }
-
-bool test_thresholding() {
-  bool ret = true;
-  AccumulateVector acc {10, 75, 134, 55, 22, 41, 7, 17, 33, 99};
-  ThresholdMatrix thres {{10}, {50}, {90}};
-  ResultVector golden {1, 2, 3, 2, 1, 1, 0, 1, 1, 3};
-  ResultVector chk = threshold(acc, thres);
-  ret &= (chk == golden);
-  if(ret) {
-    cout << "Thresholding tests OK" << endl;
-  } else {
-    cout << "Thresholding tests failed" << endl;
-  }
-  return ret;
-}
-
 
 int main(int argc, char const *argv[]) {
   srand(time(NULL));
   bool all_ok = true;
   all_ok &= test_conversions();
-  all_ok &= test_matrix_vector();
-  all_ok &= test_thresholding();
+  all_ok &= test_matrix_matrix();
 
   if(all_ok) {
     cout << "All tests completed successfully" << endl;
