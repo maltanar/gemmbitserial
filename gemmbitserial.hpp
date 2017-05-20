@@ -123,88 +123,10 @@ void fromBitSerialMatrix(BitSerialMatrix * bsm, T * matrix) {
   }
 }
 
-/* Multiply two binary matrices. Note that rhs must be given in transposed
-   form, and the result is also produced transposed.
-   TODO should we use standard alpha-beta as in standard GEMM here?
-*/
-template <typename AccType>
-void gemmNaiveBinary(uint64_t * A, uint64_t * BT, AccType * CT, int leftshift,
-uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT, bool negate) {
-  for(uint64_t rBT = 0; rBT < rowsBT; rBT++) {
-    uint64_t * BTptr = &BT[rBT * depth_words];
-    for(uint64_t rA = 0; rA < rowsA; rA++) {
-      uint64_t * Aptr = &A[rA * depth_words];
-      AccType acc = 0;
-      for(uint64_t d = 0; d < depth_words; d++) {
-        acc += __builtin_popcountll(Aptr[d] & BTptr[d]);
-      }
-      CT[rBT * rowsA + rA] += (acc << leftshift) * (negate ? -1 : +1);
-    }
-  }
-}
+// generic implementations using regular & and __builtin_popcountll
+#include "arch-generic.hpp"
 
-template <typename AccType>
-void gemmBitSerial_usingNaiveBinary(BitSerialMatrix * lhs, BitSerialMatrix * rhs, AccType * res) {
-  // ensure that matrix shapes are compatible
-  assert(lhs->ncols == rhs->ncols);
-  const uint64_t lhsbits = lhs->nbits;
-  const uint64_t rhsbits = rhs->nbits;
-  // clear contents of result matrix by setting everything to zero
-  memset(res, 0, lhs->nrows*rhs->nrows*sizeof(AccType));
-  // call binary GEMM for each bit position
-  for(uint64_t lbit = 0; lbit < lhsbits; lbit++) {
-    bool neg_lhs = lhs->issigned && (lbit == lhsbits-1);
-    for(uint64_t rbit = 0; rbit < rhsbits; rbit++) {
-      bool neg_rhs = rhs->issigned && (rbit == rhsbits-1);
-      bool neg = neg_rhs ^ neg_lhs;
-      gemmNaiveBinary(lhs->bitplaneptr(lbit), rhs->bitplaneptr(rbit), res, lbit+rbit, lhs->nrows, lhs->wordsPerRow(), rhs->nrows, neg);
-    }
-  }
-}
-
-
-/* Multiply two bit serial matrices. Note that rhs must be given in transposed
-   form, and the result is also produced transposed.
-*/
-template <typename AccType>
-void gemmBitSerial_naive(BitSerialMatrix * lhs, BitSerialMatrix * rhs, AccType * res) {
-  // ensure that matrix shapes are compatible
-  assert(lhs->ncols == rhs->ncols);
-  const uint64_t lhsbits = lhs->nbits;
-  const uint64_t rhsbits = rhs->nbits;
-  const uint64_t out_rows = lhs->nrows;
-  const uint64_t out_cols = rhs->nrows;
-  const uint64_t depth = lhs->wordsPerRow();
-
-  /* TODO add register blocking */
-  /* TODO add cache blocking */
-  for(uint64_t i = 0; i < out_cols; i++) {
-    for(uint64_t j = 0; j < out_rows; j++) {
-      AccType rowres = 0;
-      for(uint64_t lbit = 0; lbit < lhsbits; lbit++) {
-        bool neg_lhs = lhs->issigned && (lbit == lhsbits-1);
-        for(uint64_t rbit = 0; rbit < rhsbits; rbit++) {
-          bool neg_rhs = rhs->issigned && (rbit == rhsbits-1);
-          uint64_t * ldata = lhs->rowptr(lbit, j);
-          uint64_t * rdata = rhs->rowptr(rbit, i);
-          uint64_t andcard = 0;
-          // AND-popcount-accumulate over row pair
-          for(uint64_t k = 0; k < depth; k++) {
-            andcard += __builtin_popcountll(ldata[k] & rdata[k]);
-          }
-          // scale
-          andcard = andcard << (lbit + rbit);
-          // negate if needed
-          rowres += (neg_lhs ^ neg_rhs) ? -andcard : andcard;
-        }
-      }
-      // TODO increment or set here?
-      res[i * out_rows + j] = rowres;
-    }
-  }
-}
-
-#define gemmBitSerial gemmBitSerial_usingNaiveBinary
-
+// select the implementations to be used based on architecture
+// TODO
 
 }
