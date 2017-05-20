@@ -2,14 +2,14 @@
 
 // generic (non-architecture-specific) implementations off gemmBitserial
 // and other related functions
-#define gemmBinary      gemmBinary_stripe2
-#define gemmBitSerial   gemmBitSerial_usingBinary
+#define gemmBinary      gemmBinary_generic_stripe2
+
 
 /* Multiply two binary matrices. Note that rhs must be given in transposed
    form, and the result is also produced transposed.
 */
 template <typename AccType>
-void gemmBinary_naive(uint64_t * A, uint64_t * BT, AccType * CT, AccType alpha,
+void gemmBinary_generic_naive(uint64_t * A, uint64_t * BT, AccType * CT, AccType alpha,
 uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT) {
   for(uint64_t rBT = 0; rBT < rowsBT; rBT++) {
     uint64_t * BTptr = &BT[rBT * depth_words];
@@ -25,7 +25,7 @@ uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT) {
 }
 
 template <typename AccType>
-void gemmBinary_stripe2(uint64_t * A, uint64_t * BT, AccType * CT, AccType alpha,
+void gemmBinary_generic_stripe2(uint64_t * A, uint64_t * BT, AccType * CT, AccType alpha,
 uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT) {
   assert(rowsA % 2 == 0);
   assert(rowsBT % 2 == 0);
@@ -56,7 +56,7 @@ uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT) {
    produced transposed.
 */
 template <typename AccType>
-void gemmBitSerial_usingBinary(BitSerialMatrix * lhs, BitSerialMatrix * rhs, AccType * res) {
+void gemmBitSerial_generic_usingBinary(BitSerialMatrix * lhs, BitSerialMatrix * rhs, AccType * res) {
   // ensure that matrix shapes are compatible
   assert(lhs->ncols == rhs->ncols);
   const uint64_t lhsbits = lhs->nbits;
@@ -80,7 +80,7 @@ void gemmBitSerial_usingBinary(BitSerialMatrix * lhs, BitSerialMatrix * rhs, Acc
    form, and the result is also produced transposed.
 */
 template <typename AccType>
-void gemmBitSerial_naive(BitSerialMatrix * lhs, BitSerialMatrix * rhs, AccType * res) {
+void gemmBitSerial_generic_naive(BitSerialMatrix * lhs, BitSerialMatrix * rhs, AccType * res) {
   // ensure that matrix shapes are compatible
   assert(lhs->ncols == rhs->ncols);
   const uint64_t lhsbits = lhs->nbits;

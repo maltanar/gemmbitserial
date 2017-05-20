@@ -123,10 +123,16 @@ void fromBitSerialMatrix(BitSerialMatrix * bsm, T * matrix) {
   }
 }
 
-// generic implementations using regular & and __builtin_popcountll
-#include "arch-generic.hpp"
-
 // select the implementations to be used based on architecture
+#if defined(__ARM_NEON) || defined(__aarch64__)
+#warning "Compiling with ARM NEON"
+#include "arch-neon.hpp"
+#define gemmBitSerial   gemmBitSerial_neon_usingBinary
+#else// generic implementations using regular & and __builtin_popcountll
+#include "arch-generic.hpp"
+#warning "Compiling using generic popcount"
+#define gemmBitSerial   gemmBitSerial_generic_usingBinary
+#endif
 // TODO
 
 }
