@@ -1,8 +1,7 @@
 #pragma once
 
-// generic (non-architecture-specific) implementations off gemmBitserial
+// generic (non-architecture-specific) implementations of gemmBitserial
 // and other related functions
-#define gemmBinary      gemmBinary_generic_stripe2
 
 
 /* Multiply two binary matrices. Note that rhs must be given in transposed
@@ -70,7 +69,11 @@ void gemmBitSerial_generic_usingBinary(BitSerialMatrix * lhs, BitSerialMatrix * 
       bool neg_rhs = rhs->issigned && (rbit == rhsbits-1);
       bool neg = neg_rhs ^ neg_lhs;
       AccType alpha = neg ? -(1 << (lbit+rbit)) : (1 << (lbit+rbit));
-      gemmBinary(lhs->bitplaneptr(lbit), rhs->bitplaneptr(rbit), res, alpha, lhs->nrows, lhs->wordsPerRow(), rhs->nrows);
+      if(lhs->nrows % 2 == 0 && rhs->nrows % 2 == 0) {
+        gemmBinary_generic_stripe2(lhs->bitplaneptr(lbit), rhs->bitplaneptr(rbit), res, alpha, lhs->nrows, lhs->wordsPerRow(), rhs->nrows);
+      } else {
+        gemmBinary_generic_naive(lhs->bitplaneptr(lbit), rhs->bitplaneptr(rbit), res, alpha, lhs->nrows, lhs->wordsPerRow(), rhs->nrows);
+      }
     }
   }
 }

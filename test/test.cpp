@@ -127,10 +127,10 @@ bool test_matrix_matrix() {
       toBitSerialMatrix(rnd_mat_a, &lhs);
       toBitSerialMatrix(rnd_mat_b, &rhs);
       gemmBitSerial(&lhs, &rhs, res_mat);
-      /*printmatrix(rnd_mat_a, d, d*2);
-      printmatrix(rnd_mat_b, d*3, d*2);
-      printmatrix(res_mat_golden, d*3, d);
-      printmatrix(res_mat, d*3, d);*/
+      //printmatrix(rnd_mat_a, d, d*2);
+      //printmatrix(rnd_mat_b, d*3, d*2);
+      //printmatrix(res_mat_golden, d*3, d);
+      //printmatrix(res_mat, d*3, d);
 
       int rbytes = d*d*3*sizeof(int32_t);
       int res = memcmp(res_mat, res_mat_golden, rbytes);
@@ -158,7 +158,7 @@ bool test_matrix_matrix() {
 int main(int argc, char const *argv[]) {
   srand(time(NULL));
   bool all_ok = true;
-  //all_ok &= test_conversions();
+  all_ok &= test_conversions();
   all_ok &= test_matrix_matrix();
 
   if(all_ok) {

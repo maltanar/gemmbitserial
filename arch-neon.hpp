@@ -75,7 +75,11 @@ void gemmBitSerial_neon_usingBinary(BitSerialMatrix * lhs, BitSerialMatrix * rhs
       bool neg_rhs = rhs->issigned && (rbit == rhsbits-1);
       bool neg = neg_rhs ^ neg_lhs;
       AccType alpha = neg ? -(1 << (lbit+rbit)) : (1 << (lbit+rbit));
-      gemmBinary_neon_stripe2(lhs->bitplaneptr(lbit), rhs->bitplaneptr(rbit), res, alpha, lhs->nrows, lhs->wordsPerRow(), rhs->nrows);
+      if(lhs->nrows % 2 == 0 && rhs->nrows % 2 == 0) {
+        gemmBinary_neon_stripe2(lhs->bitplaneptr(lbit), rhs->bitplaneptr(rbit), res, alpha, lhs->nrows, lhs->wordsPerRow(), rhs->nrows);
+      } else {
+        gemmBinary_generic_naive(lhs->bitplaneptr(lbit), rhs->bitplaneptr(rbit), res, alpha, lhs->nrows, lhs->wordsPerRow(), rhs->nrows);
+      }
     }
   }
 }

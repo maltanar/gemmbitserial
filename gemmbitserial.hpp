@@ -10,9 +10,9 @@ class BitSerialMatrix {
 public:
   bool issigned;        // whether highest order bit pos is negative
   uint64_t nbits;       // bits of precision
-  uint64_t nrows;       // number of rows
-  uint64_t ncols;       // number of columns
-  uint64_t * data;    // data buffer, layout [nbits][nrows][ceil(ncols/64)]
+  uint64_t nrows;       // number of actual rows
+  uint64_t ncols;       // number of actual columns
+  uint64_t * data;      // data buffer, layout [nbits][nrows][ceil(ncols/64)]
 
   // number of storage words needed for each row
   inline uint64_t wordsPerRow() const {
@@ -123,13 +123,16 @@ void fromBitSerialMatrix(BitSerialMatrix * bsm, T * matrix) {
   }
 }
 
+// generic implementations using regular & and __builtin_popcountll
+#include "arch-generic.hpp"
+
 // select the implementations to be used based on architecture
 #if defined(__ARM_NEON) || defined(__aarch64__)
 #warning "Compiling with ARM NEON"
 #include "arch-neon.hpp"
+// ARM NEON-specific implementations
 #define gemmBitSerial   gemmBitSerial_neon_usingBinary
-#else// generic implementations using regular & and __builtin_popcountll
-#include "arch-generic.hpp"
+#else
 #warning "Compiling using generic popcount"
 #define gemmBitSerial   gemmBitSerial_generic_usingBinary
 #endif
