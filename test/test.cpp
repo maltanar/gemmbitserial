@@ -107,7 +107,7 @@ bool test_conversions() {
 
 bool test_matrix_matrix() {
   vector<size_t> param_bits {1, 2, 3, 4};
-  vector<size_t> param_dims {16, 17, 31, 32, 100, 177, 256};
+  vector<size_t> param_dims {16, 17, 18, 30, 31, 32, 100, 177, 256};
 
   deque<bool> param_allow_neg {false, true};
   unsigned int numConfigs = 0, ok = 0, nok = 0;
