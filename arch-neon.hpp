@@ -36,7 +36,7 @@ uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT) {
         acc_neon[2] = vaddq_u8(acc_neon[2], vcntq_u8(vandq_u8(a1, b0)));
         acc_neon[3] = vaddq_u8(acc_neon[3], vcntq_u8(vandq_u8(a1, b1)));
 
-        if(d & 15L == 0L) {
+        if((d & 15L) == 0L) {
           /* hsum over 8-bit accumulators when end or overflow*/
           for(int init = 0; init < 4; init++) {
             acc2_neon[init] = vaddq_u64(acc2_neon[init], vpaddlq_u32(vpaddlq_u16(vpaddlq_u8(acc_neon[init]))));
