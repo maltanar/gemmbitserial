@@ -24,17 +24,20 @@ uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT) {
 }
 
 template <typename AccType>
-void gemmBinary_generic_stripe2(uint64_t * A, uint64_t * BT, AccType * CT, AccType alpha,
+void gemmBinary_generic_tile2x1x2(uint64_t * A, uint64_t * BT, AccType * CT, AccType alpha,
 uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT) {
-  assert(rowsA % 2 == 0);
-  assert(rowsBT % 2 == 0);
+  const uint64_t Atile = 2, DepthTile = 1, BTtile = 2;
+  const size_t num_acc = Atile*BTtile;
+  assert(rowsA % Atile == 0);
+  assert(depth_words % DepthTile == 0);
+  assert(rowsBT % BTtile == 0);
 
-  for(uint64_t rBT = 0; rBT < rowsBT; rBT+=2) {
+  for(uint64_t rBT = 0; rBT < rowsBT; rBT += BTtile) {
     uint64_t * BTptr = &BT[rBT * depth_words];
-    for(uint64_t rA = 0; rA < rowsA; rA+=2) {
+    for(uint64_t rA = 0; rA < rowsA; rA += Atile) {
       uint64_t * Aptr = &A[rA * depth_words];
-      AccType acc[4] = {0};
-      for(uint64_t d = 0; d < depth_words; d++) {
+      AccType acc[num_acc] = {0};
+      for(uint64_t d = 0; d < depth_words; d += DepthTile) {
         const uint64_t a0 = Aptr[d], a1 = Aptr[d + depth_words];
         const uint64_t b0 = BTptr[d], b1 = BTptr[d + depth_words];
         acc[0] += __builtin_popcountll(a0 & b0);
@@ -42,10 +45,11 @@ uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT) {
         acc[2] += __builtin_popcountll(a1 & b0);
         acc[3] += __builtin_popcountll(a1 & b1);
       }
-      CT[rBT * rowsA + rA] += acc[0] * alpha;
-      CT[(rBT + 1) * rowsA + rA] += acc[1] * alpha;
-      CT[rBT * rowsA + rA + 1] += acc[2] * alpha;
-      CT[(rBT + 1) * rowsA + rA + 1] += acc[3] * alpha;
+      for(uint64_t at = 0; at < Atile; at++) {
+        for(uint64_t bt = 0; bt < BTtile; bt++) {
+          CT[(rBT + bt) * rowsA + (rA + at)] += acc[at * BTtile + bt] * alpha;
+        }
+      }
     }
   }
 }
@@ -70,7 +74,7 @@ void gemmBitSerial_generic_usingBinary(BitSerialMatrix * lhs, BitSerialMatrix * 
       bool neg = neg_rhs ^ neg_lhs;
       AccType alpha = neg ? -(1 << (lbit+rbit)) : (1 << (lbit+rbit));
       if(lhs->nrows % 2 == 0 && rhs->nrows % 2 == 0) {
-        gemmBinary_generic_stripe2(lhs->bitplaneptr(lbit), rhs->bitplaneptr(rbit), res, alpha, lhs->nrows, lhs->wordsPerRow(), rhs->nrows);
+        gemmBinary_generic_tile2x1x2(lhs->bitplaneptr(lbit), rhs->bitplaneptr(rbit), res, alpha, lhs->nrows, lhs->wordsPerRow(), rhs->nrows);
       } else {
         gemmBinary_generic_naive(lhs->bitplaneptr(lbit), rhs->bitplaneptr(rbit), res, alpha, lhs->nrows, lhs->wordsPerRow(), rhs->nrows);
       }
