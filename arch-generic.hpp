@@ -1,7 +1,31 @@
 #pragma once
+#include <math.h>
 
 // generic (non-architecture-specific) implementations of gemmBitserial
 // and other related functions
+
+
+/* Utility function to find block size under the following assumptions:
+   - size of lhs block + rhs block + result block <= cacheBits
+   - no blocking along depth (i.e. only entire rows of dBits bits)
+   - lhsMult and rhsMult determine the ratio for lhs and rhs rows in cache
+   - returned lhsRows and rhsRows are divisible by lhsMult and rhsMult, respectively
+   - each result elem takes bitsPerRes bits
+*/
+void findBlockSize(float cacheBits, float dBits, float lhsMult, float rhsMult,
+  float bitsPerRes, uint64_t & lhsRows, uint64_t & rhsRows) {
+  float a = bitsPerRes * lhsMult * rhsMult;
+  float b = dBits*(lhsMult + rhsMult);
+  float c = -cacheBits;
+  float discr = sqrt(b*b - 4 * a * c);
+  assert(discr > 0);
+  int64_t x0 = floor((-b + discr) / (2*a));
+  int64_t x1 = floor((-b - discr) / (2*a));
+  int64_t x = x0 > x1 ? x0 : x1;
+  assert(x > 0);
+  lhsRows = lhsMult * x;
+  rhsRows = rhsMult * x;
+}
 
 
 /* Multiply two binary matrices. Note that rhs must be given in transposed
