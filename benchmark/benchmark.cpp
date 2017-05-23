@@ -51,6 +51,65 @@ void benchmark_unrolledpopcount(size_t numBits, float secs) {
   delete [] rnd_vec;
 }
 
+void benchmark_gemm_interactive() {
+  while(1) {
+    unsigned int rows, depth, cols, lhsbits, rhsbits;
+    float secs;
+    cout << "Enter rows depth cols, or 0 to exit " << endl;
+    cin >> rows;
+    if(rows == 0) {
+      break;
+    }
+    cin >> depth >> cols;
+    cout << "Enter lhs and rhs bits: " << endl;
+    cin >> lhsbits >> rhsbits;
+    cout << "Enter number of seconds to benchmark: " << endl;
+    cin >> secs;
+    // prepare workload
+    uint8_t * rnd_matA = new uint8_t[rows*depth];
+    uint8_t * rnd_matB = new uint8_t[depth*cols];
+    int32_t * res = new int32_t[rows*cols];
+    generateRandomVector(lhsbits, rows*depth, rnd_matA);
+    generateRandomVector(rhsbits, depth*cols, rnd_matB);
+    // convert to bit serial form
+    BitSerialMatrix lhs, rhs;
+    allocBitSerialMatrix(&lhs, lhsbits, rows, depth, false);
+    allocBitSerialMatrix(&rhs, rhsbits, cols, depth, false);
+    toBitSerialMatrix(rnd_matA, &lhs);
+    toBitSerialMatrix(rnd_matB, &rhs);
+    delete [] rnd_matA;
+    delete [] rnd_matB;
+    cout << "======================================================================" << endl;
+    char bench_name[1024];
+    sprintf(bench_name, "gemm-%d x %d x %d (%d bit x %d bit)", rows, depth, cols, lhsbits, rhsbits);
+    cout << "Running " << bench_name << " for " << secs << " seconds..." << endl;
+    unsigned int reps = 0;
+    auto start = chrono::high_resolution_clock::now();
+    auto end = chrono::high_resolution_clock::now();
+    while (chrono::duration_cast<std::chrono::seconds>(end-start).count() < secs) {
+      // =============== start of benchmark kernel =============
+      gemmBitSerial(&lhs, &rhs, res);
+      // =============== end of benchmark kernel ================
+      reps += 1;
+      end = chrono::high_resolution_clock::now();
+      // ignore the first iteration, it's just for warmup
+      if(reps == 1) {
+        start = end;
+      }
+    }
+    cout << "Completed " << reps << " iterations" << endl;
+    double opcount = 2*rows*depth*cols;
+    double nscount = chrono::duration_cast<std::chrono::nanoseconds>(end-start).count() / (double)reps;
+    double perf = opcount / (nscount); // billion bit operations per second
+    cout << "Time for a single " << bench_name << ": " << nscount << " nanoseconds" << endl;
+    cout << "Performance for " << bench_name << ": " << perf << " GOPS per second" << endl;
+
+    deallocBitSerialMatrix(&lhs);
+    deallocBitSerialMatrix(&rhs);
+    delete [] res;
+  }
+}
+
 void benchmark_caffenet(float secs) {
   string bench_name = "CaffeNet matrices";
   const int caffenet_gemm_sizes[] = {
@@ -124,6 +183,7 @@ void benchmark_caffenet(float secs) {
 }
 
 int main(int argc, char const *argv[]) {
+  benchmark_gemm_interactive();
   benchmark_caffenet(20);
 
   vector<size_t> dims {256, 512, 1024, 2048, 4096, 8192, 16384};
