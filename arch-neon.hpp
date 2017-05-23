@@ -12,7 +12,7 @@ uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT) {
   const size_t num_acc = Atile*BTtile;
   assert(rowsA % Atile == 0);
   assert(depth_words % DepthTile == 0);
-  assert(rowsBT % BTTile == 0);
+  assert(rowsBT % BTtile == 0);
 
   for(uint64_t rBT = 0; rBT < rowsBT; rBT += BTtile) {
     uint64_t * BTptr = &BT[rBT * depth_words];
