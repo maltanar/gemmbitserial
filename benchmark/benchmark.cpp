@@ -98,9 +98,9 @@ void benchmark_gemm_interactive() {
       }
     }
     cout << "Completed " << reps << " iterations" << endl;
-    double opcount = 2*rows*depth*cols;
-    double nscount = chrono::duration_cast<std::chrono::nanoseconds>(end-start).count() / (double)reps;
-    double perf = opcount / (nscount); // billion bit operations per second
+    float opcount = 2.0*(float)rows*(float)depth*(float)cols;
+    float nscount = chrono::duration_cast<std::chrono::nanoseconds>(end-start).count() / (float)reps;
+    float perf = opcount / nscount; // billion bit operations per second
     cout << "Time for a single " << bench_name << ": " << nscount << " nanoseconds" << endl;
     cout << "Performance for " << bench_name << ": " << perf << " GOPS per second" << endl;
 
