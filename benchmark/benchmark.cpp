@@ -53,12 +53,14 @@ void benchmark_unrolledpopcount(size_t numBits, float secs) {
 
 void benchmark_gemm_interactive() {
   while(1) {
-    unsigned int rows, depth, cols, lhsbits, rhsbits;
+    int rows, depth, cols, lhsbits, rhsbits;
     float secs;
-    cout << "Enter rows depth cols, or 0 to exit " << endl;
+    cout << "Enter rows depth cols, 0 for next benchmark, -1 to exit " << endl;
     cin >> rows;
     if(rows == 0) {
       break;
+    } else if (rows < 0) {
+      exit(0);
     }
     cin >> depth >> cols;
     cout << "Enter lhs and rhs bits: " << endl;
