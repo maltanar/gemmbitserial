@@ -73,12 +73,12 @@ void benchmark_gemm_interactive() {
     int32_t * res = new int32_t[rows*cols];
     generateRandomVector(lhsbits, rows*depth, rnd_matA);
     generateRandomVector(rhsbits, depth*cols, rnd_matB);
-    // convert to bit serial form
-    BitSerialMatrix lhs, rhs;
-    allocBitSerialMatrix(&lhs, lhsbits, rows, depth, false);
-    allocBitSerialMatrix(&rhs, rhsbits, cols, depth, false);
-    toBitSerialMatrix(rnd_matA, &lhs);
-    toBitSerialMatrix(rnd_matB, &rhs);
+
+    GEMMContext ctx = allocGEMMContext(rows, depth, cols, lhsbits, rhsbits, false, false);
+    ctx.lhs.importRegular(rnd_matA);
+    ctx.rhs.importRegular(rnd_matB);
+
+
     delete [] rnd_matA;
     delete [] rnd_matB;
     cout << "======================================================================" << endl;
@@ -90,7 +90,7 @@ void benchmark_gemm_interactive() {
     auto end = chrono::high_resolution_clock::now();
     while (chrono::duration_cast<std::chrono::seconds>(end-start).count() < secs) {
       // =============== start of benchmark kernel =============
-      gemmBitSerial(&lhs, &rhs, res);
+      gemmBitSerial(ctx);
       // =============== end of benchmark kernel ================
       reps += 1;
       end = chrono::high_resolution_clock::now();
@@ -106,12 +106,11 @@ void benchmark_gemm_interactive() {
     cout << "Time for a single " << bench_name << ": " << nscount << " nanoseconds" << endl;
     cout << "Performance for " << bench_name << ": " << perf << " GOPS per second" << endl;
 
-    deallocBitSerialMatrix(&lhs);
-    deallocBitSerialMatrix(&rhs);
+    deallocGEMMContext(ctx);
     delete [] res;
   }
 }
-
+/*
 void benchmark_caffenet(float secs) {
   string bench_name = "CaffeNet matrices";
   const int caffenet_gemm_sizes[] = {
@@ -141,6 +140,7 @@ void benchmark_caffenet(float secs) {
     uint8_t * rnd_matB = new uint8_t[depth*cols];
     generateRandomVector(wbits, rows*depth, rnd_matA);
     generateRandomVector(abits, depth*cols, rnd_matB);
+
     BitSerialMatrix lhs, rhs;
     allocBitSerialMatrix(&lhs, wbits, rows, depth, false);
     allocBitSerialMatrix(&rhs, abits, cols, depth, false);
@@ -182,11 +182,11 @@ void benchmark_caffenet(float secs) {
     deallocBitSerialMatrix(&caffenet_gemms_A[i]);
     deallocBitSerialMatrix(&caffenet_gemms_B[i]);
   }
-}
+}*/
 
 int main(int argc, char const *argv[]) {
   benchmark_gemm_interactive();
-  benchmark_caffenet(20);
+  //benchmark_caffenet(20);
 
   vector<size_t> dims {256, 512, 1024, 2048, 4096, 8192, 16384};
   for(auto &d: dims) {
