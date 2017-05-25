@@ -55,9 +55,6 @@ public:
     std::cout << "Bits of precision: " << nbits << " signed: " << issigned << std::endl;
     std::cout << "Actual size: " << nrows << " x " << ncols << std::endl;
     std::cout << "Allocated size: " << nrows_a << " x " << ncols_a << std::endl;
-    std::cout << "Actual ops: " << 2*nrows*ncols << std::endl;
-    std::cout << "Allocated ops: " << 2*nrows_a*ncols_a << std::endl;
-    std::cout << "Wasted ops: " << 2*nrows_a*ncols_a-2*nrows*ncols << std::endl;
   }
 
   // number of storage words needed for each row
@@ -186,6 +183,11 @@ public:
     std::cout << "RHS: ";
     rhs.printSummary();
     std::cout << "Block size: " << rhsBlock << std::endl;
+    float actual_ops = 2*lhs.nrows*lhs.ncols*rhs.nrows;
+    float alloc_ops = 2*lhs.nrows_a*lhs.ncols_a*rhs.nrows_a;
+    std::cout << "Actual ops: " << actual_ops << std::endl;
+    std::cout << "Allocated ops: " << alloc_ops << std::endl;
+    std::cout << "Actual op percentage: " << 100*actual_ops/alloc_ops << std::endl;
   }
 };
 
