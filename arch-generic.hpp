@@ -23,8 +23,8 @@ GEMMContext allocGEMMContext_generic(
   );
   if(ret.lhsBlock > lhsRows || ret.rhsBlock > rhsRows) {
     // use register blocking only
-    ret.lhsBlock = regblock_lhs;
-    ret.rhsBlock = regblock_rhs;
+    ret.lhsBlock = alignTo(lhsRows, regblock_lhs);
+    ret.rhsBlock = alignTo(rhsRows, regblock_rhs);
   }
   // allocate aligned bit serial matrices
   ret.lhs = BitSerialMatrix::alloc(
@@ -69,7 +69,6 @@ inline void gemmBinary_generic_chunk_tile2x1x2(
       }
       for(uint64_t at = 0; at < Atile; at++) {
         for(uint64_t bt = 0; bt < BTtile; bt++) {
-          // TODO less than or leq?
           if(((rBT + bt) < rowsBT_orig) && ((rA + at) < rowsA_orig)) {
             CT[(rBT + bt) * rowsA_orig + (rA + at)] += acc[at * BTtile + bt] * alpha;
           }
