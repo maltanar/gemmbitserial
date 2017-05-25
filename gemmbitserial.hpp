@@ -207,6 +207,47 @@ public:
   }
 };
 
+// Base functionality for allocating a GEMM context. Do not use directly,
+// use the platform-provided allocGEMMContext instead.
+GEMMContext allocGEMMContext_base(
+  const uint64_t lhsRows, const uint64_t depth, const uint64_t rhsRows,
+  const uint64_t lhsBits, const uint64_t rhsBits, const bool lhsSigned,
+  const bool rhsSigned, const uint64_t regblock_lhs, const uint64_t regblock_d,
+  const uint64_t regblock_rhs, const uint64_t cacheBits
+) {
+  GEMMContext ret;
+  uint64_t depth_al = alignTo(depth, regblock_d*64);
+  // use cache blocking; compute sizes
+  computeBlockSize(
+    regblock_lhs, regblock_rhs, cacheBits, depth_al,
+    ret.lhsBlock, ret.rhsBlock
+  );
+  if(ret.lhsBlock > lhsRows || ret.rhsBlock > rhsRows) {
+    // use register blocking only
+    ret.lhsBlock = alignTo(lhsRows, regblock_lhs);
+    ret.rhsBlock = alignTo(rhsRows, regblock_rhs);
+  } else {
+    // see if there is too much wasted compute for current block sizes
+    if((alignTo(lhsRows, ret.lhsBlock) - lhsRows) > 0.1*lhsRows) {
+      ret.lhsBlock = finetuneBlockSize(lhsRows, ret.lhsBlock, regblock_lhs);
+    }
+    if((alignTo(rhsRows, ret.rhsBlock) - rhsRows) > 0.1*rhsRows) {
+      ret.rhsBlock = finetuneBlockSize(rhsRows, ret.rhsBlock, regblock_rhs);
+    }
+  }
+  // allocate aligned bit serial matrices
+  ret.lhs = BitSerialMatrix::alloc(
+    lhsBits, lhsRows, depth, lhsSigned, ret.lhsBlock, regblock_d*64
+  );
+  ret.rhs = BitSerialMatrix::alloc(
+    rhsBits, rhsRows, depth, rhsSigned, ret.rhsBlock, regblock_d*64
+  );
+  // allocate result matrix. note that it is not aligned -- the
+  // elements corresponding to alignment parts won't materialize.
+  ret.res = new int32_t[lhsRows * rhsRows];
+  return ret;
+};
+
 void deallocGEMMContext(GEMMContext ctx) {
   delete [] ctx.res;
   BitSerialMatrix::dealloc(ctx.lhs);
