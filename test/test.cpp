@@ -152,7 +152,7 @@ bool test_matrix_matrix() {
 int main(int argc, char const *argv[]) {
   srand(time(NULL));
   bool all_ok = true;
-  //all_ok &= test_conversions();
+  all_ok &= test_conversions();
   all_ok &= test_matrix_matrix();
 
   if(all_ok) {

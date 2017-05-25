@@ -77,6 +77,7 @@ void benchmark_gemm_interactive() {
     GEMMContext ctx = allocGEMMContext(rows, depth, cols, lhsbits, rhsbits, false, false);
     ctx.lhs.importRegular(rnd_matA);
     ctx.rhs.importRegular(rnd_matB);
+    ctx.printSummary();
 
 
     delete [] rnd_matA;
