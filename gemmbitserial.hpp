@@ -114,12 +114,15 @@ public:
   */
   template <typename T>
   void importRegular(T * matrix, bool readColMajor=false) {
-    // TODO add support for transposed reading
-    assert(!readColMajor);
     this->clearAll();
     for(uint64_t r = 0; r < this->nrows; r++) {
       for(uint64_t c = 0; c < this->ncols; c++) {
-        uint8_t currentElem = (uint8_t) matrix[r * this->ncols + c];
+        uint8_t currentElem;
+        if(!readColMajor) {
+          currentElem = (uint8_t) matrix[r * this->ncols + c];
+        } else {
+          currentElem = (uint8_t) matrix[c * this->nrows + r];
+        }
         for(uint64_t b = 0; b < this->nbits; b++) {
           if(currentElem & (1 << b)) {
             this->set(b, r, c);
