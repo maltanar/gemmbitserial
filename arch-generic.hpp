@@ -44,10 +44,9 @@ GEMMContext allocGEMMContext_generic(
 /* Multiply a lhs_block x rhs_block chunk of the given matrices, starting at
   (bA, bBT) using 2x1x2 register tiling. For internal use.
 */
-template <typename AccType>
 inline void gemmBinary_generic_chunk_tile2x1x2(
-  uint64_t * A, uint64_t * BT, AccType * CT,
-  AccType alpha,
+  uint64_t * A, uint64_t * BT, int32_t * CT,
+  int32_t alpha,
   uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT,
   uint64_t bA, uint64_t bBT,
   uint64_t lhs_block, uint64_t rhs_block,
@@ -59,7 +58,7 @@ inline void gemmBinary_generic_chunk_tile2x1x2(
     uint64_t * BTptr = &BT[rBT * depth_words];
     for(uint64_t rA = bA; rA < bA + lhs_block; rA += Atile) {
       uint64_t * Aptr = &A[rA * depth_words];
-      AccType acc[num_acc] = {0};
+      int32_t acc[num_acc] = {0};
       for(uint64_t d = 0; d < depth_words; d += DepthTile) {
         const uint64_t a0 = Aptr[d], a1 = Aptr[d + depth_words];
         const uint64_t b0 = BTptr[d], b1 = BTptr[d + depth_words];
@@ -83,9 +82,8 @@ inline void gemmBinary_generic_chunk_tile2x1x2(
 /* CT = A * BT using cache blocking and 2x1x2 register blocking where possible.
    For internal use.
 */
-template <typename AccType>
 void gemmBinary_generic_L1_tile2x1x2(
-  uint64_t * A, uint64_t * BT, AccType * CT, AccType alpha,
+  uint64_t * A, uint64_t * BT, int32_t * CT, int32_t alpha,
   uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT,
   uint64_t rowsA_orig, uint64_t rowsBT_orig,
   uint64_t lhsBlock, uint64_t rhsBlock
@@ -95,7 +93,7 @@ void gemmBinary_generic_L1_tile2x1x2(
   assert(rowsA % lhsBlock == 0);
   assert(lhsBlock % Atile == 0);
   assert(rhsBlock % BTtile == 0);
-  
+
   for(uint64_t bBT = 0; bBT < rowsBT; bBT += rhsBlock) {
     for(uint64_t bA = 0; bA < rowsA; bA += lhsBlock) {
       gemmBinary_generic_chunk_tile2x1x2(
