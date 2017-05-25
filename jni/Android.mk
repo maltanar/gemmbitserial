@@ -13,5 +13,5 @@ include $(CLEAR_VARS)
 LOCAL_ARM_NEON := true
 LOCAL_MODULE := test
 LOCAL_SRC_FILES := ../test/test.cpp
-
+LOCAL_CFLAGS += -UNDEBUG 
 include $(BUILD_EXECUTABLE)
