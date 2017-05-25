@@ -106,7 +106,7 @@ bool test_conversions() {
 
 bool test_matrix_matrix() {
   vector<size_t> param_bits {1, 2, 3, 4};
-  vector<size_t> param_dims {16, 17, 18, 30, 31, 32, 100, 177, 256};
+  vector<size_t> param_dims {3, 5, 7, 16, 17, 18, 30, 31, 32, 100, 177, 256};
 
   deque<bool> param_allow_neg {false, true};
   unsigned int numConfigs = 0, ok = 0, nok = 0;
@@ -123,6 +123,7 @@ bool test_matrix_matrix() {
       ctx.rhs.importRegular(rnd_mat_b);
 
       gemmBitSerial(ctx);
+      //ctx.printSummary();
       //printmatrix(rnd_mat_a, d, d*2);
       //printmatrix(rnd_mat_b, d*3, d*2);
       //printmatrix(res_mat_golden, d*3, d);
