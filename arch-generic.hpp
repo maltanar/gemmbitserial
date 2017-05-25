@@ -2,7 +2,7 @@
 // generic (non-architecture-specific) implementations of gemmBitserial
 // and other related functions
 
-GEMMContext allocGEMMContext_generic(
+static GEMMContext allocGEMMContext_generic(
   uint64_t lhsRows, uint64_t depth, uint64_t rhsRows,
   uint64_t lhsBits, uint64_t rhsBits,
   bool lhsSigned, bool rhsSigned
@@ -59,7 +59,7 @@ inline void gemmBinary_generic_chunk_tile2x1x2(
 /* CT = A * BT using cache blocking and 2x1x2 register blocking where possible.
    For internal use.
 */
-void gemmBinary_generic_L1_tile2x1x2(
+static void gemmBinary_generic_L1_tile2x1x2(
   uint64_t * A, uint64_t * BT, int32_t * CT, int32_t alpha,
   uint64_t rowsA, uint64_t depth_words, uint64_t rowsBT,
   uint64_t rowsA_orig, uint64_t rowsBT_orig,
@@ -86,7 +86,7 @@ void gemmBinary_generic_L1_tile2x1x2(
    produced transposed.
 */
 
-void gemmBitSerial_generic_usingBinary(GEMMContext ctx) {
+static void gemmBitSerial_generic_usingBinary(GEMMContext ctx) {
   // ensure that matrix shapes are compatible
   assert(ctx.lhs.ncols == ctx.rhs.ncols);
   const uint64_t lhsbits = ctx.lhs.nbits;

@@ -157,7 +157,7 @@ public:
    - returned lhsRows and rhsRows are divisible by lhsMult and rhsMult, respectively
    - each result elem takes bitsPerRes bits
 */
-void computeBlockSize(float lhsMult, float rhsMult, float cacheBits, float dBits, uint64_t & lhsBlock, uint64_t & rhsBlock) {
+static void computeBlockSize(float lhsMult, float rhsMult, float cacheBits, float dBits, uint64_t & lhsBlock, uint64_t & rhsBlock) {
   float a = sizeof(int32_t) * lhsMult * rhsMult;
   float b = dBits*(lhsMult + rhsMult);
   float c = -cacheBits;
@@ -173,7 +173,7 @@ void computeBlockSize(float lhsMult, float rhsMult, float cacheBits, float dBits
 
 // rather naive, iterative search for a better block size
 // how could this be improved?
-uint64_t finetuneBlockSize(uint64_t rows, uint64_t bs_max, uint64_t bs_div) {
+static uint64_t finetuneBlockSize(uint64_t rows, uint64_t bs_max, uint64_t bs_div) {
   uint64_t best_cand = bs_max;
   uint64_t min_penalty = alignTo(rows, best_cand) - rows;
   for(uint64_t ccand = bs_max; ccand > bs_div; ccand = ccand - bs_div ) {
@@ -212,7 +212,7 @@ public:
 
 // Base functionality for allocating a GEMM context. Do not use directly,
 // use the platform-provided allocGEMMContext instead.
-GEMMContext allocGEMMContext_base(
+static GEMMContext allocGEMMContext_base(
   const uint64_t lhsRows, const uint64_t depth, const uint64_t rhsRows,
   const uint64_t lhsBits, const uint64_t rhsBits, const bool lhsSigned,
   const bool rhsSigned, const uint64_t regblock_lhs, const uint64_t regblock_d,
@@ -251,7 +251,7 @@ GEMMContext allocGEMMContext_base(
   return ret;
 };
 
-void deallocGEMMContext(GEMMContext ctx) {
+static void deallocGEMMContext(GEMMContext ctx) {
   delete [] ctx.res;
   BitSerialMatrix::dealloc(ctx.lhs);
   BitSerialMatrix::dealloc(ctx.rhs);
