@@ -111,7 +111,7 @@ void benchmark_gemm_interactive() {
     delete [] res;
   }
 }
-/*
+
 void benchmark_caffenet(float secs) {
   string bench_name = "CaffeNet matrices";
   const int caffenet_gemm_sizes[] = {
@@ -130,8 +130,7 @@ void benchmark_caffenet(float secs) {
   const std::size_t num_caffenet_gemms =
       sizeof(caffenet_gemm_sizes) / (3 * sizeof(caffenet_gemm_sizes[0]));
   // prepare workload
-  vector<BitSerialMatrix> caffenet_gemms_A, caffenet_gemms_B;
-  vector<int32_t *> caffenet_res;
+  vector<GEMMContext> caffenet_gemms;
   for (std::size_t i = 0; i < num_caffenet_gemms; i++) {
     size_t rows = caffenet_gemm_sizes[3 * i + 0];
     size_t depth = caffenet_gemm_sizes[3 * i + 1];
@@ -141,15 +140,10 @@ void benchmark_caffenet(float secs) {
     uint8_t * rnd_matB = new uint8_t[depth*cols];
     generateRandomVector(wbits, rows*depth, rnd_matA);
     generateRandomVector(abits, depth*cols, rnd_matB);
-
-    BitSerialMatrix lhs, rhs;
-    allocBitSerialMatrix(&lhs, wbits, rows, depth, false);
-    allocBitSerialMatrix(&rhs, abits, cols, depth, false);
-    toBitSerialMatrix(rnd_matA, &lhs);
-    toBitSerialMatrix(rnd_matB, &rhs);
-    caffenet_gemms_A.push_back(lhs);
-    caffenet_gemms_B.push_back(rhs);
-    caffenet_res.push_back(new int32_t[rows*cols]);
+    GEMMContext g = allocGEMMContext(rows, depth, cols, wbits, abits, false, false);
+    g.lhs.importRegular(rnd_matA);
+    g.rhs.importRegular(rnd_matB);
+    caffenet_gemms.push_back(g);
     delete [] rnd_matA;
     delete [] rnd_matB;
   }
@@ -162,7 +156,7 @@ void benchmark_caffenet(float secs) {
   while (chrono::duration_cast<std::chrono::seconds>(end-start).count() < secs) {
     // =============== start of benchmark kernel =============
     for(size_t i = 0; i < num_caffenet_gemms; i++) {
-      gemmBitSerial(&caffenet_gemms_A[i], &caffenet_gemms_B[i], caffenet_res[i]);
+      gemmBitSerial(caffenet_gemms[i]);
     }
     // =============== end of benchmark kernel ================
     reps += 1;
@@ -179,15 +173,13 @@ void benchmark_caffenet(float secs) {
   cout << "Performance for " << bench_name << ": " << perf << " GOPS per second" << endl;
 
   for (std::size_t i = 0; i < num_caffenet_gemms; i++) {
-    delete [] caffenet_res[i];
-    deallocBitSerialMatrix(&caffenet_gemms_A[i]);
-    deallocBitSerialMatrix(&caffenet_gemms_B[i]);
+    deallocGEMMContext(caffenet_gemms[i]);
   }
-}*/
+}
 
 int main(int argc, char const *argv[]) {
   benchmark_gemm_interactive();
-  //benchmark_caffenet(20);
+  benchmark_caffenet(20);
 
   vector<size_t> dims {256, 512, 1024, 2048, 4096, 8192, 16384};
   for(auto &d: dims) {
