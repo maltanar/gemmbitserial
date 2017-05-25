@@ -1,5 +1,4 @@
 #pragma once
-
 // generic (non-architecture-specific) implementations of gemmBitserial
 // and other related functions
 
@@ -25,6 +24,14 @@ GEMMContext allocGEMMContext_generic(
     // use register blocking only
     ret.lhsBlock = alignTo(lhsRows, regblock_lhs);
     ret.rhsBlock = alignTo(rhsRows, regblock_rhs);
+  } else {
+    // see if there is too much wasted compute for current block sizes
+    if((alignTo(lhsRows, ret.lhsBlock) - lhsRows) > 0.1*lhsRows) {
+      ret.lhsBlock = finetuneBlockSize(lhsRows, ret.lhsBlock, regblock_lhs);
+    }
+    if((alignTo(rhsRows, ret.rhsBlock) - rhsRows) > 0.1*rhsRows) {
+      ret.rhsBlock = finetuneBlockSize(rhsRows, ret.rhsBlock, regblock_rhs);
+    }
   }
   // allocate aligned bit serial matrices
   ret.lhs = BitSerialMatrix::alloc(

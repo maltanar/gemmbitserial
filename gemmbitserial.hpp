@@ -168,6 +168,22 @@ void computeBlockSize(float lhsMult, float rhsMult, float cacheBits, float dBits
   rhsBlock = rhsMult * x;
 };
 
+// rather naive, iterative search for a better block size
+// how could this be improved?
+uint64_t finetuneBlockSize(uint64_t rows, uint64_t bs_max, uint64_t bs_div) {
+  uint64_t best_cand = bs_max;
+  uint64_t min_penalty = alignTo(rows, best_cand) - rows;
+  for(uint64_t ccand = bs_max; ccand > bs_div; ccand = ccand - bs_div ) {
+    if(ccand % bs_div == 0) {
+      uint64_t penalty = alignTo(rows, ccand) - rows;
+      if(penalty < min_penalty) {
+        best_cand = ccand;
+        min_penalty = penalty;
+      }
+    }
+  }
+  return best_cand;
+}
 
 class GEMMContext {
 public:
