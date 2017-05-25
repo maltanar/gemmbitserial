@@ -87,11 +87,10 @@ void gemmBinary_neon_L1_tile4x2x2(
             vst1q_u64(tmp, acc2_neon[init]);
             acc[init] = tmp[0] + tmp[1];
           }
-
           for(uint64_t at = 0; at < Atile; at++) {
             for(uint64_t bt = 0; bt < BTtile; bt++) {
               if(((rBT + bt) < rowsBT_orig) && ((rA + at) < rowsA_orig)) {
-                CT[(rBT + bt) * rowsA + (rA + at)] += acc[at * BTtile + bt] * alpha;
+                CT[(rBT + bt) * rowsA_orig + (rA + at)] += acc[at * BTtile + bt] * alpha;
               }
             }
           }
