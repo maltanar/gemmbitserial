@@ -9,7 +9,11 @@ namespace gemmbitserial {
 
 // Utility function to increment-and-align "in" to "af"
 inline uint64_t alignTo(uint64_t in, uint64_t af) {
-  return in + (af - (in % af));
+  if(in % af != 0) {
+    return in + (af - (in % af));
+  } else {
+    return in;
+  }
 }
 
 class BitSerialMatrix {
@@ -44,6 +48,14 @@ public:
   uint64_t nrows_a;     // number of allocated rows
   uint64_t ncols_a;     // number of allocated columns
   uint64_t * data;      // data buffer, layout [nbits][nrows_a][ncols_a/64]
+
+  // print key statistics about BitSerialMatrix to stdout
+  void printSummary() {
+    std::cout << "BitSerialMatrix" << std::endl;
+    std::cout << "Bits of precision: " << nbits << " signed: " << issigned << std::endl;
+    std::cout << "Actual size: " << nrows << " x " << ncols << std::endl;
+    std::cout << "Allocated size: " << nrows_a << " x " << ncols_a << std::endl;
+  }
 
   // number of storage words needed for each row
   inline uint64_t wordsPerRow() const {
@@ -162,6 +174,16 @@ public:
   BitSerialMatrix lhs, rhs;
   uint64_t lhsBlock, rhsBlock;
   int32_t * res;
+
+  void printSummary() {
+    std::cout << "GEMMContext" << std::endl;
+    std::cout << "LHS: ";
+    lhs.printSummary();
+    std::cout << "Block size: " << lhsBlock << std::endl;
+    std::cout << "RHS: ";
+    rhs.printSummary();
+    std::cout << "Block size: " << rhsBlock << std::endl;
+  }
 };
 
 void deallocGEMMContext(GEMMContext ctx) {
