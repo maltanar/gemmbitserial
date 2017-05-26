@@ -85,7 +85,6 @@ static void gemmBinary_generic_L1_tile2x1x2(
    Note that rhs must be given in transposed form, and the result is also
    produced transposed.
 */
-
 static void gemmBitSerial_generic_usingBinary(GEMMContext ctx) {
   // ensure that matrix shapes are compatible
   assert(ctx.lhs.ncols == ctx.rhs.ncols);
@@ -105,6 +104,43 @@ static void gemmBitSerial_generic_usingBinary(GEMMContext ctx) {
         ctx.lhs.nrows_a, ctx.lhs.wordsPerRow(), ctx.rhs.nrows_a,
         ctx.lhs.nrows, ctx.rhs.nrows, ctx.lhsBlock, ctx.rhsBlock
       );
+    }
+  }
+}
+
+/* Standalone bit-serial GEMM. Note that rhs must be given in transposed
+   form, and the result is also produced transposed.
+*/
+static void gemmBitSerial_generic_naive(GEMMContext ctx) {
+  // ensure that matrix shapes are compatible
+  assert(ctx.lhs.ncols == ctx.rhs.ncols);
+  const uint64_t lhsbits = ctx.lhs.nbits;
+  const uint64_t rhsbits = ctx.rhs.nbits;
+  const uint64_t out_rows = ctx.lhs.nrows;
+  const uint64_t out_cols = ctx.rhs.nrows;
+  const uint64_t depth = ctx.lhs.wordsPerRow();
+
+  for(uint64_t i = 0; i < out_cols; i++) {
+    for(uint64_t j = 0; j < out_rows; j++) {
+      int32_t rowres = 0;
+      for(uint64_t lbit = 0; lbit < lhsbits; lbit++) {
+        bool neg_lhs = ctx.lhs.issigned && (lbit == lhsbits-1);
+        for(uint64_t rbit = 0; rbit < rhsbits; rbit++) {
+          bool neg_rhs = ctx.rhs.issigned && (rbit == rhsbits-1);
+          uint64_t * ldata = ctx.lhs.rowptr(lbit, j);
+          uint64_t * rdata = ctx.rhs.rowptr(rbit, i);
+          uint64_t andcard = 0;
+          // AND-popcount-accumulate over row pair
+          for(uint64_t k = 0; k < depth; k++) {
+            andcard += __builtin_popcountll(ldata[k] & rdata[k]);
+          }
+          // scale
+          andcard = andcard << (lbit + rbit);
+          // negate if needed
+          rowres += (neg_lhs ^ neg_rhs) ? -andcard : andcard;
+        }
+      }
+      ctx.res[i * ctx.lhs.nrows + j] = rowres;
     }
   }
 }
