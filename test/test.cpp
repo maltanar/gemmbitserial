@@ -5,6 +5,7 @@
 #include <vector>
 #include <deque>
 #include "gemmbitserial.hpp"
+#include "mnistdata.h"
 
 using namespace std;
 using namespace gemmbitserial;
@@ -23,7 +24,8 @@ void generateRandomVector(size_t bits, size_t dim, uint8_t * ret) {
   }
 }
 
-void naive_int_gemm(uint8_t * lhs, uint8_t * rhs, int32_t * res, int rows, int depth, int cols) {
+template <typename LHSType, typename RHSType>
+void naive_int_gemm(LHSType * lhs, RHSType * rhs, int32_t * res, int rows, int depth, int cols) {
   for(int k = 0; k < cols; k++) {
     for(int i = 0; i < rows; i++) {
       int32_t acc = 0;
@@ -47,7 +49,7 @@ void printmatrix(T * mat, int rows, int cols) {
 }
 
 template <typename T>
-void printmatrixdiff(T * mat1, T* mat2, int rows, int cols) {
+void printmatrixdiff(const T * mat1, const T * mat2, int rows, int cols) {
   for(int i = 0; i < rows; i++) {
     for(int j = 0; j < cols; j++) {
       if(mat1[i * cols + j] != mat2[i * cols + j]) {
@@ -150,10 +152,28 @@ bool test_matrix_matrix() {
   return ok == numConfigs;
 }
 
+bool test_mnist() {
+  // test bit serial gemm using real-life matrix data from a MNIST neural net
+  GEMMContext ctx = allocGEMMContext(
+    MNIST_OUT, MNIST_IN, 1, MNIST_WBITS, MNIST_ABITS, MNIST_WSIGN, MNIST_ASIGN
+  );
+  ctx.lhs.importRegular(mnist_weights);
+  ctx.rhs.importRegular(mnist_in);
+  gemmBitSerial(ctx);
+  int res = memcmp(ctx.res, mnist_res_golden, MNIST_OUT*sizeof(int32_t));
+  cout << "MNIST matrix-vector: " << (res == 0 ? "OK" : "NOK") << endl;
+  if(res != 0) {
+    printmatrixdiff(ctx.res, mnist_res_golden, 1, MNIST_OUT);
+  }
+  deallocGEMMContext(ctx);
+  return res == 0;
+}
+
 int main(int argc, char const *argv[]) {
   srand(time(NULL));
   bool all_ok = true;
   all_ok &= test_conversions();
+  all_ok &= test_mnist();
   all_ok &= test_matrix_matrix();
 
   if(all_ok) {
