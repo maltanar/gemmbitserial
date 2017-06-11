@@ -90,8 +90,7 @@ static void gemmBitSerial_generic_usingBinary(GEMMContext ctx) {
   assert(ctx.lhs.ncols == ctx.rhs.ncols);
   const uint64_t lhsbits = ctx.lhs.nbits;
   const uint64_t rhsbits = ctx.rhs.nbits;
-  // clear contents of result matrix by setting everything to zero
-  memset(ctx.res, 0, ctx.lhs.nrows*ctx.rhs.nrows*sizeof(int32_t));
+  prepareAccumulators(ctx);
   // call binary GEMM for each bit position
   for(uint64_t lbit = 0; lbit < lhsbits; lbit++) {
     bool neg_lhs = ctx.lhs.issigned && (lbit == lhsbits-1);
@@ -107,6 +106,7 @@ static void gemmBitSerial_generic_usingBinary(GEMMContext ctx) {
     }
   }
 }
+
 
 /* Standalone bit-serial GEMM. Note that rhs must be given in transposed
    form, and the result is also produced transposed.

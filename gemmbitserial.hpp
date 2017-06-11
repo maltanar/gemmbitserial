@@ -257,6 +257,30 @@ static void deallocGEMMContext(GEMMContext ctx) {
   BitSerialMatrix::dealloc(ctx.rhs);
 };
 
+static void prepareAccumulators(GEMMContext ctx) {
+  // when bits = 1 and signed = true, we assume a matrix is bipolar, not using
+  //{-1, 0} but instead {-1, +1} values.
+  bool lhsBipolar = (ctx.lhs.nbits == 1) && ctx.lhs.issigned;
+  bool rhsBipolar = (ctx.rhs.nbits == 1) && ctx.rhs.issigned;
+
+  if(lhsBipolar ^ rhsBipolar) {
+    // if only one matrix is bipolar, we'll need to do something special.
+    // despite the bipolar matrix, we'll compute the result using {0,1}
+    // (regular unsigned 1-bit) matrices as follows:
+    // let x be a column vector, W a bipolar matrix, and B a binary matrix which
+    // is identical to W except all -1s are represented as 0.
+    // note that each element We in W can be rewritten as 2*Be-1
+    // by initializing the result vector to the negative of sum of all elements
+    // in x, we get the same result using B instead of W.
+    // TODO compute columnwise sum of the regular matrix with bit serial
+    // TODO initialize accumulators from columnwise sums
+
+  } else {
+    // just initialize all accumulators to zero
+    memset(ctx.res, 0, ctx.lhs.nrows*ctx.rhs.nrows*sizeof(int32_t));
+  }
+}
+
 // generic implementations using regular & and __builtin_popcountll
 #include "arch-generic.hpp"
 
