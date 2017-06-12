@@ -291,10 +291,12 @@ static void prepareAccumulators(GEMMContext ctx) {
 // ARM NEON-specific implementations
 #define gemmBitSerial     gemmBitSerial_neon_usingBinary
 #define allocGEMMContext  allocGEMMContext_neon
+#define sumRows           sumRows_generic_naive
 #else
 #warning "Compiling using generic popcount"
 #define gemmBitSerial     gemmBitSerial_generic_usingBinary
 #define allocGEMMContext  allocGEMMContext_generic
+#define sumRows           sumRows_generic_naive
 #endif
 
 }

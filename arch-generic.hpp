@@ -144,3 +144,25 @@ static void gemmBitSerial_generic_naive(GEMMContext ctx) {
     }
   }
 }
+
+// Compute the row-wise sum of a bit-serial matrix
+static void sumRows_generic_naive(BitSerialMatrix m, int32_t * row_sums) {
+  const uint64_t nc = m.wordsPerRow();
+
+  for(uint64_t r = 0; r < m.nrows; r++) {
+    int32_t row_acc = 0;
+    for(uint64_t b = 0; b < m.nbits; b++) {
+      uint64_t * rowptr = m.rowptr(b, r);
+      int32_t bit_acc = 0;
+      for(uint64_t c = 0; c < nc; c++) {
+        bit_acc += __builtin_popcountll(rowptr[c]);
+      }
+      bit_acc = bit_acc << b;
+      if(m.issigned && b == m.nbits - 1) {
+        bit_acc = -bit_acc;
+      }
+      row_acc += bit_acc;
+    }
+    row_sums[r] = row_acc;
+  }
+}
