@@ -57,6 +57,11 @@ public:
     std::cout << "Allocated size: " << nrows_a << " x " << ncols_a << std::endl;
   }
 
+  // return whether the matrix contains bipolar binary {-1, +1} values
+  inline bool isBipolar() const {
+    return nbits == 1 && issigned;
+  }
+
   // number of storage words needed for each row
   inline uint64_t wordsPerRow() const {
     const uint64_t bitsPerWord = sizeof(uint64_t) * 8;
@@ -117,15 +122,26 @@ public:
     this->clearAll();
     for(uint64_t r = 0; r < this->nrows; r++) {
       for(uint64_t c = 0; c < this->ncols; c++) {
-        uint8_t currentElem;
-        if(!readColMajor) {
-          currentElem = (uint8_t) matrix[r * this->ncols + c];
+        T currentElem = readColMajor ? matrix[c * this->nrows + r] : matrix[r * this->ncols + c];
+        if(this->isBipolar()) {
+          // use bipolar binary encoding: -1 and +1 only (sign)
+          if(currentElem >= 0) {
+            this->set(0, r, c);
+          }
         } else {
-          currentElem = (uint8_t) matrix[c * this->nrows + r];
-        }
-        for(uint64_t b = 0; b < this->nbits; b++) {
-          if(currentElem & (1 << b)) {
-            this->set(b, r, c);
+          // use two's complement
+          uint8_t currentElem_uint8 = 0;
+          if(this->issigned && currentElem < 0) {
+            // convert to two's complement for this bitwidth
+            currentElem_uint8 += (uint8_t)(1 << (this->nbits - 1));
+            currentElem_uint8 += (uint8_t)(currentElem + (1 << (this->nbits - 1)));
+          } else {
+            currentElem_uint8 = (uint8_t) currentElem;
+          }
+          for(uint64_t b = 0; b < this->nbits; b++) {
+            if(currentElem_uint8 & (1 << b)) {
+              this->set(b, r, c);
+            }
           }
         }
       }
@@ -138,13 +154,21 @@ public:
   void exportRegular(T * matrix) {
     for(uint64_t r = 0; r < this->nrows; r++) {
       for(uint64_t c = 0; c < this->ncols; c++) {
-        uint8_t currentElem = 0;
-        for(uint64_t b = 0; b < this->nbits; b++) {
-          if(this->get(b, r, c)) {
-            currentElem |= 1 << b;
+        if(this->isBipolar()) {
+          matrix[r * this->ncols + c] = (T) this->get(0, r, c) ? +1 : -1;
+        } else {
+          T currentElem = 0;
+          for(uint64_t b = 0; b < this->nbits; b++) {
+            if(this->get(b, r, c)) {
+              if((b == this->nbits-1) && this->issigned) {
+                currentElem -= 1 << b;
+              } else {
+                currentElem += 1 << b;
+              }
+            }
           }
+          matrix[r * this->ncols + c] = (T) currentElem;
         }
-        matrix[r * this->ncols + c] = (T) currentElem;
       }
     }
   }
@@ -257,29 +281,7 @@ static void deallocGEMMContext(GEMMContext ctx) {
   BitSerialMatrix::dealloc(ctx.rhs);
 };
 
-static void prepareAccumulators(GEMMContext ctx) {
-  // when bits = 1 and signed = true, we assume a matrix is bipolar, not using
-  //{-1, 0} but instead {-1, +1} values.
-  bool lhsBipolar = (ctx.lhs.nbits == 1) && ctx.lhs.issigned;
-  bool rhsBipolar = (ctx.rhs.nbits == 1) && ctx.rhs.issigned;
 
-  if(lhsBipolar ^ rhsBipolar) {
-    // if only one matrix is bipolar, we'll need to do something special.
-    // despite the bipolar matrix, we'll compute the result using {0,1}
-    // (regular unsigned 1-bit) matrices as follows:
-    // let x be a column vector, W a bipolar matrix, and B a binary matrix which
-    // is identical to W except all -1s are represented as 0.
-    // note that each element We in W can be rewritten as 2*Be-1
-    // by initializing the result vector to the negative of sum of all elements
-    // in x, we get the same result using B instead of W.
-    // TODO compute columnwise sum of the regular matrix with bit serial
-    // TODO initialize accumulators from columnwise sums
-
-  } else {
-    // just initialize all accumulators to zero
-    memset(ctx.res, 0, ctx.lhs.nrows*ctx.rhs.nrows*sizeof(int32_t));
-  }
-}
 
 // generic implementations using regular & and __builtin_popcountll
 #include "arch-generic.hpp"

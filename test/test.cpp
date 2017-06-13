@@ -13,15 +13,29 @@ using namespace gemmbitserial;
 #define VERBOSE_TEST(x) ;
 //#define VERBOSE_TEST(x) x
 
+// Generate a random vector of -1 and +1 values of given dimension
+template <typename T>
+void generateRandomVector_Bipolar(size_t dim, T * ret) {
+  for(size_t i = 0; i < dim; i++) {
+    ret[i] = (rand() % 2 == 0) ? 1 : -1;
+  }
+}
+
 /**
-* Generate a random vector with given dimension and number of bits <= 8
+* Generate a random vector with given dimension and number of bits
 */
 template <typename T>
-void generateRandomVector(size_t bits, size_t dim, T * ret, T offs = 0) {
-  T minVal = 0;
-  T maxVal = (1 << bits);
+void generateRandomVector(size_t bits, size_t dim, T * ret, bool allowNeg = false) {
+  assert(bits <= (sizeof(T) * 8));
+  if(bits == 1 && allowNeg) {
+    // generate bipolar values
+    generateRandomVector_Bipolar(dim, ret);
+    return;
+  }
+  int32_t minVal = 0;
+  int32_t maxVal = (1 << bits);
   for(size_t i = 0; i < dim; i++) {
-    ret[i] = (rand() % maxVal) - offs;
+    ret[i] = (rand() % maxVal) - (allowNeg ? maxVal/2 : 0);
   }
 }
 
@@ -86,34 +100,38 @@ void printBitSerialMatrix(BitSerialMatrix * bsm) {
 }
 
 bool test_rowwise_sum() {
-  vector<size_t> param_bits {2, 3, 4};
-  vector<size_t> param_dims {4, 16, 17, 32, 77, 100, 1024, 4096};
+  vector<size_t> param_bits {1, 2, 3, 4};
+  vector<size_t> param_dims {4, 16, 17, 32, 77, 100, 1023};
+  vector<int> param_signed {1, 0};
   unsigned int numConfigs = 0, ok = 0, nok = 0;
   for(auto & b: param_bits) {
     for(auto & d: param_dims) {
-      int8_t * rnd_mat = new int8_t[d*d];
-      int32_t * res_ret = new int32_t[d];
-      int32_t * res_golden = new int32_t[d];
-      generateRandomVector(b, d*d, rnd_mat, (int8_t)( 1 << (b-1)));
-      BitSerialMatrix bsm = BitSerialMatrix::alloc(b, d, d, true);
-      bsm.importRegular(rnd_mat);
-      sumRows(bsm, res_ret);
-      naive_sum_rows(rnd_mat, res_golden, d, d);
-      int res = memcmp(res_ret, res_golden, d);
-      if(res == 0) {
-        ok++;
-      } else {
-        nok++;
+      for(auto & sgnd: param_signed) {
+        bool isSigned = (bool) sgnd;
+        int8_t * rnd_mat = new int8_t[d*d];
+        int32_t * res_ret = new int32_t[d];
+        int32_t * res_golden = new int32_t[d];
+        generateRandomVector(b, d*d, rnd_mat, isSigned);
+        BitSerialMatrix bsm = BitSerialMatrix::alloc(b, d, d, isSigned);
+        bsm.importRegular(rnd_mat);
+        sumRows(bsm, res_ret);
+        naive_sum_rows(rnd_mat, res_golden, d, d);
+        int res = memcmp(res_ret, res_golden, d);
+        if(res == 0) {
+          ok++;
+        } else {
+          nok++;
+        }
+        //printmatrix(rnd_mat, d, d);
+        //printmatrix(res_golden, d, 1);
+        //printmatrix(res_ret, d, 1);
+        BitSerialMatrix::dealloc(bsm);
+        delete [] rnd_mat;
+        delete [] res_golden;
+        delete [] res_ret;
+        numConfigs++;
+        VERBOSE_TEST(cout << "Bits = " << b << " dim = " << d << " result = " << res << endl);
       }
-      //printmatrix(rnd_mat, d, d);
-      //printmatrix(res_golden, d, 1);
-      //printmatrix(res_ret, d, 1);
-      BitSerialMatrix::dealloc(bsm);
-      delete [] rnd_mat;
-      delete [] res_golden;
-      delete [] res_ret;
-      numConfigs++;
-      VERBOSE_TEST(cout << "Bits = " << b << " dim = " << d << " result = " << res << endl);
     }
   }
   cout << "Row-wise sum tests: " << ok << " OK, " << nok << " NOK" << endl;
@@ -121,37 +139,41 @@ bool test_rowwise_sum() {
 }
 
 bool test_conversions() {
-  vector<size_t> param_bits {1, 2, 3, 4};
-  vector<size_t> param_dims {16, 17, 32, 77, 100, 1024, 4096};
+  vector<size_t> param_bits {1, 2, 3, 7};
+  vector<size_t> param_dims {4, 16, 17, 32, 77, 100, 1023};
+  vector<int> param_signed {1, 0};
   unsigned int numConfigs = 0, ok = 0, nok = 0;
 
   for(auto & b: param_bits) {
     for(auto & d: param_dims) {
-      uint8_t * res_chk = new uint8_t[d*d];
-      uint8_t * rnd_vec = new uint8_t[d*d];
-      assert(res_chk != 0 && rnd_vec != 0);
-      generateRandomVector(b, d*d, rnd_vec);
+      for(auto & sgnd: param_signed) {
+        int8_t * res_chk = new int8_t[d*d];
+        int8_t * rnd_vec = new int8_t[d*d];
+        assert(res_chk != 0 && rnd_vec != 0);
+        generateRandomVector(b, d*d, rnd_vec, (bool) sgnd);
 
-      BitSerialMatrix bsm = BitSerialMatrix::alloc(b, d, d, false);
-      bsm.importRegular(rnd_vec);
-      bsm.exportRegular(res_chk);
-      int res = memcmp(rnd_vec, res_chk, d);
-      if(res == 0) {
-        ok++;
-      } else {
-        nok++;
+        BitSerialMatrix bsm = BitSerialMatrix::alloc(b, d, d, (bool) sgnd);
+        bsm.importRegular(rnd_vec);
+        bsm.exportRegular(res_chk);
+        //printmatrix(rnd_vec, d, d);
+        //printmatrix(res_chk, d, d);
+        int res = memcmp(rnd_vec, res_chk, d);
+        if(res == 0) {
+          ok++;
+        } else {
+          nok++;
+        }
+        delete [] rnd_vec;
+        delete [] res_chk;
+        BitSerialMatrix::dealloc(bsm);
+        numConfigs++;
+        VERBOSE_TEST(cout << "Bits = " << b << " dim = " << d << " result = " << res << endl);
       }
-      delete [] rnd_vec;
-      delete [] res_chk;
-      BitSerialMatrix::dealloc(bsm);
-      numConfigs++;
-      VERBOSE_TEST(cout << "Bits = " << b << " dim = " << d << " result = " << res << endl);
     }
   }
   cout << "Conversion tests: " << ok << " OK, " << nok << " NOK" << endl;
   return ok == numConfigs;
 }
-
 
 bool test_matrix_matrix() {
   vector<size_t> param_bits {2, 3, 4};
@@ -216,6 +238,22 @@ bool test_mnist() {
   return res == 0;
 }
 
+bool test_bipolar() {
+  size_t d = 4;
+  size_t b = 2;
+  int8_t * bipolar_mat = new int8_t[d*d];
+  uint8_t * regular_mat = new uint8_t[d*1];
+  int32_t * res_golden = new int32_t[d*1];
+  generateRandomVector_Bipolar(d*d, bipolar_mat);
+  generateRandomVector(b, d*1, regular_mat);
+  naive_int_gemm(bipolar_mat, regular_mat, res_golden, d, d, 1);
+  printmatrix(bipolar_mat, d, d);
+  printmatrix(regular_mat, 1, d);
+  printmatrix(res_golden, 1, d);
+
+
+}
+
 int main(int argc, char const *argv[]) {
   srand(time(NULL));
   bool all_ok = true;
@@ -223,6 +261,7 @@ int main(int argc, char const *argv[]) {
   all_ok &= test_rowwise_sum();
   all_ok &= test_mnist();
   all_ok &= test_matrix_matrix();
+  //test_bipolar();
 
   if(all_ok) {
     cout << "All tests completed successfully" << endl;

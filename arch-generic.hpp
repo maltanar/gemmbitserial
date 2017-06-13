@@ -2,6 +2,78 @@
 // generic (non-architecture-specific) implementations of gemmBitserial
 // and other related functions
 
+// Compute the row-wise sum of a bit-serial matrix
+static void sumRows_generic_naive(BitSerialMatrix m, int32_t * row_sums) {
+  const uint64_t nc = m.wordsPerRow();
+
+  for(uint64_t r = 0; r < m.nrows; r++) {
+    int32_t row_acc = 0;
+    if(m.isBipolar()) {
+      uint64_t * rowptr = m.rowptr(0, r);
+      for(uint64_t c = 0; c < nc; c++) {
+        row_acc += __builtin_popcountll(rowptr[c]);
+      }
+      // account for -1s in the sum. how does this work? let p be the number of
+      // +1 bits, and n be the number of -1 bits. we know that there are only
+      // p+n bits in total, and we want to compute the sum as p-n. rewriting
+      // -n in terms of the number of columns (bits), we get:
+      row_sums[r] = 2 * row_acc - m.ncols;
+    } else {
+      for(uint64_t b = 0; b < m.nbits; b++) {
+        uint64_t * rowptr = m.rowptr(b, r);
+        int32_t bit_acc = 0;
+        for(uint64_t c = 0; c < nc; c++) {
+          bit_acc += __builtin_popcountll(rowptr[c]);
+        }
+        bit_acc = bit_acc << b;
+        if(m.issigned && b == m.nbits - 1) {
+          bit_acc = -bit_acc;
+        }
+        row_acc += bit_acc;
+      }
+      row_sums[r] = row_acc;
+    }
+  }
+}
+
+static void prepareAccumulators_generic(GEMMContext ctx) {
+  // when bits = 1 and signed = true, we assume a matrix is bipolar, not using
+  //{-1, 0} but instead {-1, +1} values.
+  bool lhsBipolar = (ctx.lhs.nbits == 1) && ctx.lhs.issigned;
+  bool rhsBipolar = (ctx.rhs.nbits == 1) && ctx.rhs.issigned;
+
+  if(lhsBipolar ^ rhsBipolar) {
+    BitSerialMatrix bipolarM = lhsBipolar ? ctx.lhs : ctx.rhs;
+    BitSerialMatrix regularM = lhsBipolar ? ctx.rhs : ctx.lhs;
+    // if only one matrix is bipolar, we'll need to do something special.
+    // despite the bipolar matrix, we'll compute the result using {0,1}
+    // (regular unsigned 1-bit) matrices as follows:
+    // let x be a column vector, W a bipolar matrix, and B a binary matrix which
+    // is identical to W except all -1s are represented as 0.
+    // note that each element We in W can be rewritten as 2*Be-1
+    // by initializing the result vector to the negative of sum of all elements
+    // in x, we get the same result using B instead of W.
+    // compute columnwise sum of the regular matrix with bit serial
+    // TODO should this buffer be part of the GEMMContext?
+    int32_t * rowwise_sum = new int32_t[regularM.nrows];
+    sumRows_generic_naive(regularM, rowwise_sum);
+    // initialize result matrix accumulators from sum
+    for(auto res_row = 0; res_row < ctx.rhs.nrows; res_row++) {
+      for(auto res_col = 0; res_col < ctx.lhs.nrows; res_col++) {
+        if(lhsBipolar) {
+          ctx.res[res_row * ctx.lhs.nrows + res_col] = rowwise_sum[res_row];
+        } else {
+          ctx.res[res_row * ctx.lhs.nrows + res_col] = rowwise_sum[res_col];
+        }
+      }
+    }
+    delete [] rowwise_sum;
+  } else {
+    // just initialize all result matrix accumulators to zero
+    memset(ctx.res, 0, ctx.lhs.nrows*ctx.rhs.nrows*sizeof(int32_t));
+  }
+}
+
 static GEMMContext allocGEMMContext_generic(
   uint64_t lhsRows, uint64_t depth, uint64_t rhsRows,
   uint64_t lhsBits, uint64_t rhsBits,
@@ -90,7 +162,7 @@ static void gemmBitSerial_generic_usingBinary(GEMMContext ctx) {
   assert(ctx.lhs.ncols == ctx.rhs.ncols);
   const uint64_t lhsbits = ctx.lhs.nbits;
   const uint64_t rhsbits = ctx.rhs.nbits;
-  prepareAccumulators(ctx);
+  prepareAccumulators_generic(ctx);
   // call binary GEMM for each bit position
   for(uint64_t lbit = 0; lbit < lhsbits; lbit++) {
     bool neg_lhs = ctx.lhs.issigned && (lbit == lhsbits-1);
@@ -119,7 +191,7 @@ static void gemmBitSerial_generic_naive(GEMMContext ctx) {
   const uint64_t out_rows = ctx.lhs.nrows;
   const uint64_t out_cols = ctx.rhs.nrows;
   const uint64_t depth = ctx.lhs.wordsPerRow();
-
+  prepareAccumulators_generic(ctx);
   for(uint64_t i = 0; i < out_cols; i++) {
     for(uint64_t j = 0; j < out_rows; j++) {
       int32_t rowres = 0;
@@ -140,29 +212,7 @@ static void gemmBitSerial_generic_naive(GEMMContext ctx) {
           rowres += (neg_lhs ^ neg_rhs) ? -andcard : andcard;
         }
       }
-      ctx.res[i * ctx.lhs.nrows + j] = rowres;
+      ctx.res[i * ctx.lhs.nrows + j] += rowres;
     }
-  }
-}
-
-// Compute the row-wise sum of a bit-serial matrix
-static void sumRows_generic_naive(BitSerialMatrix m, int32_t * row_sums) {
-  const uint64_t nc = m.wordsPerRow();
-
-  for(uint64_t r = 0; r < m.nrows; r++) {
-    int32_t row_acc = 0;
-    for(uint64_t b = 0; b < m.nbits; b++) {
-      uint64_t * rowptr = m.rowptr(b, r);
-      int32_t bit_acc = 0;
-      for(uint64_t c = 0; c < nc; c++) {
-        bit_acc += __builtin_popcountll(rowptr[c]);
-      }
-      bit_acc = bit_acc << b;
-      if(m.issigned && b == m.nbits - 1) {
-        bit_acc = -bit_acc;
-      }
-      row_acc += bit_acc;
-    }
-    row_sums[r] = row_acc;
   }
 }
