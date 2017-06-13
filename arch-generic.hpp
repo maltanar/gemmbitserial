@@ -228,7 +228,7 @@ static void gemmBitSerial_generic_naive(GEMMContext ctx) {
 // XNOR-popcount instead of AND-popcount, and also need an additional correction
 // step to account for zeroes being treated as -1 bits
 
-// Naive implementation
+// naive implementation for bipolar GEMM
 static void gemmBipolar_generic_naive(GEMMContext ctx) {
   // ensure that matrix shapes are compatible
   assert(ctx.lhs.ncols == ctx.rhs.ncols);
@@ -242,19 +242,21 @@ static void gemmBipolar_generic_naive(GEMMContext ctx) {
       int32_t rowres = 0;
       uint64_t * ldata = ctx.lhs.rowptr(0, j);
       uint64_t * rdata = ctx.rhs.rowptr(0, i);
-      // XNOR-popcount-accumulate over row pair
+      // XNOR-popcount-accumulate over row pair. note that we do XOR-popcount
+      // to save one instruction (no need to invert the XOR result). this is
+      // accounted for in the correction afterwards.
       for(uint64_t k = 0; k < depth; k++) {
-        rowres += __builtin_popcountll(~(ldata[k] ^ rdata[k]));
+        rowres += __builtin_popcountll(ldata[k] ^ rdata[k]);
       }
-      // correction for sum of -1 bits
-      ctx.res[i * ctx.lhs.nrows + j] += 2 * rowres - ctx.lhs.ncols;
+      // correction for sum of 1 and -1 bits
+      ctx.res[i * ctx.lhs.nrows + j] +=  -2 * rowres + ctx.lhs.ncols;
     }
   }
 }
 
 static void gemmBitSerial_generic(GEMMContext ctx) {
   if(ctx.isBipolarTimesBipolar()) {
-    gemmBitSerial_generic_naive(ctx);
+    gemmBipolar_generic_naive(ctx);
   } else {
     gemmBitSerial_generic_usingBinary(ctx);
   }
