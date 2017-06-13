@@ -239,19 +239,41 @@ bool test_mnist() {
 }
 
 bool test_bipolar() {
-  size_t d = 4;
-  size_t b = 2;
+  unsigned int numConfigs = 0, ok = 0, nok = 0;
+  size_t d = 4, dc = 4;
+  size_t lhs_bits = 1, rhs_bits = 2;
+  bool lhs_sign = true, rhs_sign = false;
   int8_t * bipolar_mat = new int8_t[d*d];
-  uint8_t * regular_mat = new uint8_t[d*1];
-  int32_t * res_golden = new int32_t[d*1];
+  uint8_t * regular_mat = new uint8_t[d*dc];
+  int32_t * res_golden = new int32_t[d*dc];
+  int32_t * res_chk = new int32_t[d*dc];
+  GEMMContext ctx = allocGEMMContext(
+    d, d, dc, lhs_bits, rhs_bits, lhs_sign, rhs_sign
+  );
   generateRandomVector_Bipolar(d*d, bipolar_mat);
-  generateRandomVector(b, d*1, regular_mat);
-  naive_int_gemm(bipolar_mat, regular_mat, res_golden, d, d, 1);
-  printmatrix(bipolar_mat, d, d);
-  printmatrix(regular_mat, 1, d);
-  printmatrix(res_golden, 1, d);
-
-
+  generateRandomVector(rhs_bits, d*dc, regular_mat);
+  ctx.lhs.importRegular(bipolar_mat);
+  ctx.rhs.importRegular(regular_mat);
+  gemmBitSerial(ctx);
+  naive_int_gemm(bipolar_mat, regular_mat, res_golden, d, d, dc);
+  //printmatrix(bipolar_mat, d, d);
+  //printmatrix(regular_mat, dc, d);
+  //printmatrix(res_golden, dc, d);
+  //printmatrix(ctx.res, dc, d);
+  int res = memcmp(res_golden, ctx.res, sizeof(int32_t)*d*dc);
+  if(res == 0) {
+    ok++;
+  } else {
+    nok++;
+  }
+  numConfigs++;
+  delete [] bipolar_mat;
+  delete [] regular_mat;
+  delete [] res_golden;
+  delete [] res_chk;
+  deallocGEMMContext(ctx);
+  cout << "Bipolar matrix matrix multiplication tests: " << ok << " OK, " << nok << " NOK" << endl;
+  return ok == numConfigs;
 }
 
 int main(int argc, char const *argv[]) {
@@ -261,7 +283,7 @@ int main(int argc, char const *argv[]) {
   all_ok &= test_rowwise_sum();
   all_ok &= test_mnist();
   all_ok &= test_matrix_matrix();
-  //test_bipolar();
+  all_ok &= test_bipolar();
 
   if(all_ok) {
     cout << "All tests completed successfully" << endl;

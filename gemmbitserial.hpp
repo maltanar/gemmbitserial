@@ -232,6 +232,10 @@ public:
     std::cout << "Allocated ops: " << alloc_ops << std::endl;
     std::cout << "Actual op percentage: " << 100*actual_ops/alloc_ops << std::endl;
   }
+
+  inline bool isBipolarTimesRegular() const {
+    return (lhs.isBipolar() && !rhs.isBipolar()) || (!lhs.isBipolar() && rhs.isBipolar());
+  }
 };
 
 // Base functionality for allocating a GEMM context. Do not use directly,

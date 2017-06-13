@@ -61,9 +61,10 @@ static void prepareAccumulators_generic(GEMMContext ctx) {
     for(auto res_row = 0; res_row < ctx.rhs.nrows; res_row++) {
       for(auto res_col = 0; res_col < ctx.lhs.nrows; res_col++) {
         if(lhsBipolar) {
-          ctx.res[res_row * ctx.lhs.nrows + res_col] = rowwise_sum[res_row];
+          ctx.res[res_row * ctx.lhs.nrows + res_col] = -rowwise_sum[res_row];
+
         } else {
-          ctx.res[res_row * ctx.lhs.nrows + res_col] = rowwise_sum[res_col];
+          ctx.res[res_row * ctx.lhs.nrows + res_col] = -rowwise_sum[res_col];
         }
       }
     }
@@ -162,14 +163,18 @@ static void gemmBitSerial_generic_usingBinary(GEMMContext ctx) {
   assert(ctx.lhs.ncols == ctx.rhs.ncols);
   const uint64_t lhsbits = ctx.lhs.nbits;
   const uint64_t rhsbits = ctx.rhs.nbits;
+
   prepareAccumulators_generic(ctx);
   // call binary GEMM for each bit position
+  // note that bipolars don't count as negative, we do those with {0, 1} as a
+  // special case
   for(uint64_t lbit = 0; lbit < lhsbits; lbit++) {
-    bool neg_lhs = ctx.lhs.issigned && (lbit == lhsbits-1);
+    bool neg_lhs = ctx.lhs.issigned && !ctx.lhs.isBipolar() && (lbit == lhsbits-1);
     for(uint64_t rbit = 0; rbit < rhsbits; rbit++) {
-      bool neg_rhs = ctx.rhs.issigned && (rbit == rhsbits-1);
+      bool neg_rhs = ctx.rhs.issigned && !ctx.rhs.isBipolar() && (rbit == rhsbits-1);
       bool neg = neg_rhs ^ neg_lhs;
       int32_t alpha = neg ? -(1 << (lbit+rbit)) : (1 << (lbit+rbit));
+      alpha = ctx.isBipolarTimesRegular() ? 2*alpha : alpha;
       gemmBinary_generic_L1_tile2x1x2(
         ctx.lhs.bitplaneptr(lbit), ctx.rhs.bitplaneptr(rbit), ctx.res, alpha,
         ctx.lhs.nrows_a, ctx.lhs.wordsPerRow(), ctx.rhs.nrows_a,
@@ -196,9 +201,9 @@ static void gemmBitSerial_generic_naive(GEMMContext ctx) {
     for(uint64_t j = 0; j < out_rows; j++) {
       int32_t rowres = 0;
       for(uint64_t lbit = 0; lbit < lhsbits; lbit++) {
-        bool neg_lhs = ctx.lhs.issigned && (lbit == lhsbits-1);
+        bool neg_lhs = ctx.lhs.issigned && !ctx.lhs.isBipolar() && (lbit == lhsbits-1);
         for(uint64_t rbit = 0; rbit < rhsbits; rbit++) {
-          bool neg_rhs = ctx.rhs.issigned && (rbit == rhsbits-1);
+          bool neg_rhs = ctx.rhs.issigned && !ctx.rhs.isBipolar() && (rbit == rhsbits-1);
           uint64_t * ldata = ctx.lhs.rowptr(lbit, j);
           uint64_t * rdata = ctx.rhs.rowptr(rbit, i);
           uint64_t andcard = 0;
