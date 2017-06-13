@@ -236,6 +236,10 @@ public:
   inline bool isBipolarTimesRegular() const {
     return (lhs.isBipolar() && !rhs.isBipolar()) || (!lhs.isBipolar() && rhs.isBipolar());
   }
+
+  inline bool isBipolarTimesBipolar() const {
+    return (lhs.isBipolar() && rhs.isBipolar());
+  }
 };
 
 // Base functionality for allocating a GEMM context. Do not use directly,
@@ -300,9 +304,9 @@ static void deallocGEMMContext(GEMMContext ctx) {
 #define sumRows           sumRows_generic_naive
 #else
 #warning "Compiling using generic popcount"
-#define gemmBitSerial     gemmBitSerial_generic_usingBinary
+#define gemmBitSerial     gemmBitSerial_generic
 #define allocGEMMContext  allocGEMMContext_generic
-#define sumRows           sumRows_generic_naive
+#define sumRows           sumRows_generic
 #endif
 
 }

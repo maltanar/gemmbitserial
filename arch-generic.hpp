@@ -3,7 +3,7 @@
 // and other related functions
 
 // Compute the row-wise sum of a bit-serial matrix
-static void sumRows_generic_naive(BitSerialMatrix m, int32_t * row_sums) {
+static void sumRows_generic(BitSerialMatrix m, int32_t * row_sums) {
   const uint64_t nc = m.wordsPerRow();
 
   for(uint64_t r = 0; r < m.nrows; r++) {
@@ -56,7 +56,7 @@ static void prepareAccumulators_generic(GEMMContext ctx) {
     // compute columnwise sum of the regular matrix with bit serial
     // TODO should this buffer be part of the GEMMContext?
     int32_t * rowwise_sum = new int32_t[regularM.nrows];
-    sumRows_generic_naive(regularM, rowwise_sum);
+    sumRows_generic(regularM, rowwise_sum);
     // initialize result matrix accumulators from sum
     for(auto res_row = 0; res_row < ctx.rhs.nrows; res_row++) {
       for(auto res_col = 0; res_col < ctx.lhs.nrows; res_col++) {
@@ -212,12 +212,50 @@ static void gemmBitSerial_generic_naive(GEMMContext ctx) {
             andcard += __builtin_popcountll(ldata[k] & rdata[k]);
           }
           // scale
-          andcard = andcard << (lbit + rbit);
+          uint64_t bpreg_scale = ctx.isBipolarTimesRegular() ? 1 : 0;
+          andcard = andcard << (lbit + rbit + bpreg_scale);
           // negate if needed
           rowres += (neg_lhs ^ neg_rhs) ? -andcard : andcard;
         }
       }
       ctx.res[i * ctx.lhs.nrows + j] += rowres;
     }
+  }
+}
+
+
+// Special case: bipolar times bipolar matrix multiplication. These use
+// XNOR-popcount instead of AND-popcount, and also need an additional correction
+// step to account for zeroes being treated as -1 bits
+
+// Naive implementation
+static void gemmBipolar_generic_naive(GEMMContext ctx) {
+  // ensure that matrix shapes are compatible
+  assert(ctx.lhs.ncols == ctx.rhs.ncols);
+  assert(ctx.lhs.isBipolar() && ctx.rhs.isBipolar());
+  const uint64_t out_rows = ctx.lhs.nrows;
+  const uint64_t out_cols = ctx.rhs.nrows;
+  const uint64_t depth = ctx.lhs.wordsPerRow();
+  prepareAccumulators_generic(ctx);
+  for(uint64_t i = 0; i < out_cols; i++) {
+    for(uint64_t j = 0; j < out_rows; j++) {
+      int32_t rowres = 0;
+      uint64_t * ldata = ctx.lhs.rowptr(0, j);
+      uint64_t * rdata = ctx.rhs.rowptr(0, i);
+      // XNOR-popcount-accumulate over row pair
+      for(uint64_t k = 0; k < depth; k++) {
+        rowres += __builtin_popcountll(~(ldata[k] ^ rdata[k]));
+      }
+      // correction for sum of -1 bits
+      ctx.res[i * ctx.lhs.nrows + j] += 2 * rowres - ctx.lhs.ncols;
+    }
+  }
+}
+
+static void gemmBitSerial_generic(GEMMContext ctx) {
+  if(ctx.isBipolarTimesBipolar()) {
+    gemmBitSerial_generic_naive(ctx);
+  } else {
+    gemmBitSerial_generic_usingBinary(ctx);
   }
 }
