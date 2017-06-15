@@ -27,6 +27,29 @@ static inline uint64_t popcount_neon(uint64_t * rowptr, uint64_t numElems) {
   return ret;
 }
 
+static inline uint64_t xor_popcount_neon(uint64_t * rowptrA, uint64_t * rowptrB, uint64_t numElems) {
+  uint64_t ret = 0;
+  const uint64_t DepthTile = 2;
+  uint8x16_t acc_neon = vcombine_u8(vcreate_u8(0), vcreate_u8(0));
+  uint64x2_t acc2_neon = vcombine_u64(vcreate_u64(0), vcreate_u64(0));
+  for(uint64_t c = 0; c < numElems; c += DepthTile) {
+    uint8x16_t a0 = vld1q_u8((uint8_t *) &rowptrA[c]);
+    uint8x16_t b0 = vld1q_u8((uint8_t *) &rowptrB[c]);
+    acc_neon = vaddq_u8(acc_neon, vcntq_u8(veorq_u8(a0, b0)));
+    if((c & 7L) == 7L) {
+      // hsum over 8-bit accumulators when end or overflow
+      acc2_neon = vaddq_u64(acc2_neon, vpaddlq_u32(vpaddlq_u16(vpaddlq_u8(acc_neon))));
+      acc_neon = vcombine_u8(vcreate_u8(0), vcreate_u8(0));
+    }
+  }
+  // move into regular accumulators
+  uint64_t tmp[2];
+  acc2_neon = vaddq_u64(acc2_neon, vpaddlq_u32(vpaddlq_u16(vpaddlq_u8(acc_neon))));
+  vst1q_u64(tmp, acc2_neon);
+  ret = (tmp[0] + tmp[1]);
+  return ret;
+}
+
 
 // Compute the row-wise sum of a bit-serial matrix
 static void sumRows_neon(BitSerialMatrix m, int32_t * row_sums) {
@@ -220,10 +243,32 @@ static void gemmBitSerial_neon_usingBinary(GEMMContext ctx) {
   }
 }
 
+// naive implementation for bipolar GEMM
+static void gemmBipolar_neon_naive(GEMMContext ctx) {
+  // ensure that matrix shapes are compatible
+  assert(ctx.lhs.ncols == ctx.rhs.ncols);
+  assert(ctx.lhs.isBipolar() && ctx.rhs.isBipolar());
+  const uint64_t out_rows = ctx.lhs.nrows;
+  const uint64_t out_cols = ctx.rhs.nrows;
+  const uint64_t depth = ctx.lhs.wordsPerRow();
+  prepareAccumulators_generic(ctx);
+  for(uint64_t i = 0; i < out_cols; i++) {
+    for(uint64_t j = 0; j < out_rows; j++) {
+      uint64_t * ldata = ctx.lhs.rowptr(0, j);
+      uint64_t * rdata = ctx.rhs.rowptr(0, i);
+      // XNOR-popcount-accumulate over row pair. note that we do XOR-popcount
+      // to save one instruction (no need to invert the XOR result). this is
+      // accounted for in the correction afterwards.
+      int32_t rowres = (int32_t) xor_popcount_neon(ldata, rdata, depth);
+      // correction for sum of 1 and -1 bits
+      ctx.res[i * ctx.lhs.nrows + j] +=  -2 * rowres + ctx.lhs.ncols;
+    }
+  }
+}
+
 static void gemmBitSerial_neon(GEMMContext ctx) {
   if(ctx.isBipolarTimesBipolar()) {
-    // TODO implement NEON variant of bipolar times bipolar
-    gemmBipolar_generic_naive(ctx);
+    gemmBipolar_neon_naive(ctx);
   } else {
     gemmBitSerial_neon_usingBinary(ctx);
   }
