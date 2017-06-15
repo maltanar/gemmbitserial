@@ -234,7 +234,7 @@ bool test_mnist() {
   ctx.rhs.importRegular(mnist_in);
   gemmBitSerial(ctx);
   int res = memcmp(ctx.res, mnist_res_golden, MNIST_OUT*sizeof(int32_t));
-  cout << "MNIST matrix-vector: " << (res == 0 ? "OK" : "NOK") << endl;
+  cout << "MNIST matrix-vector using bipolar times regular: " << (res == 0 ? "OK" : "NOK") << endl;
   if(res != 0) {
     printmatrixdiff(ctx.res, mnist_res_golden, 1, MNIST_OUT);
   }

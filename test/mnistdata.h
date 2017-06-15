@@ -1,6 +1,6 @@
 #define MNIST_IN    784
 #define MNIST_OUT   256
-#define MNIST_WBITS 2
+#define MNIST_WBITS 1
 #define MNIST_ABITS 2
 #define MNIST_WSIGN true
 #define MNIST_ASIGN false
