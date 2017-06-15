@@ -299,9 +299,9 @@ static void deallocGEMMContext(GEMMContext ctx) {
 #warning "Compiling with ARM NEON"
 #include "arch-neon.hpp"
 // ARM NEON-specific implementations
-#define gemmBitSerial     gemmBitSerial_neon_usingBinary
+#define gemmBitSerial     gemmBitSerial_neon
 #define allocGEMMContext  allocGEMMContext_neon
-#define sumRows           sumRows_generic_naive
+#define sumRows           sumRows_neon
 #else
 #warning "Compiling using generic popcount"
 #define gemmBitSerial     gemmBitSerial_generic

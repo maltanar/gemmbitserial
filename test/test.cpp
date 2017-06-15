@@ -11,7 +11,7 @@ using namespace std;
 using namespace gemmbitserial;
 
 #define VERBOSE_TEST(x) ;
-//#define VERBOSE_TEST(x) x
+#define VERBOSE_TEST(x) x
 
 // Generate a random vector of -1 and +1 values of given dimension
 template <typename T>
@@ -112,7 +112,11 @@ bool test_rowwise_sum() {
         int32_t * res_ret = new int32_t[d];
         int32_t * res_golden = new int32_t[d];
         generateRandomVector(b, d*d, rnd_mat, isSigned);
-        BitSerialMatrix bsm = BitSerialMatrix::alloc(b, d, d, isSigned);
+        // TODO add aligned version of BitSerialMatrix::alloc
+        GEMMContext ctx = allocGEMMContext(
+          d, d, 1, b, 1, isSigned, false
+        );
+        BitSerialMatrix bsm = ctx.lhs;
         bsm.importRegular(rnd_mat);
         sumRows(bsm, res_ret);
         naive_sum_rows(rnd_mat, res_golden, d, d);
@@ -122,10 +126,10 @@ bool test_rowwise_sum() {
         } else {
           nok++;
         }
-        //printmatrix(rnd_mat, d, d);
-        //printmatrix(res_golden, d, 1);
-        //printmatrix(res_ret, d, 1);
-        BitSerialMatrix::dealloc(bsm);
+        /*printmatrix(rnd_mat, d, d);
+        printmatrix(res_golden, d, 1);
+        printmatrix(res_ret, d, 1);*/
+        deallocGEMMContext(ctx);
         delete [] rnd_mat;
         delete [] res_golden;
         delete [] res_ret;
@@ -292,6 +296,7 @@ bool test_bipolar_times_regular() {
           delete [] res_golden;
           delete [] res_chk;
           deallocGEMMContext(ctx);
+          VERBOSE_TEST(cout << "Bits = " << rhs_bits << " dim = " << d << " result = " << res << endl);
         }
       }
     }
@@ -342,12 +347,12 @@ bool test_bipolar_times_bipolar() {
 int main(int argc, char const *argv[]) {
   srand(time(NULL));
   bool all_ok = true;
-  all_ok &= test_conversions();
+  /*all_ok &= test_conversions();
   all_ok &= test_rowwise_sum();
   all_ok &= test_mnist();
-  all_ok &= test_matrix_matrix();
+  all_ok &= test_matrix_matrix();*/
   all_ok &= test_bipolar_times_regular();
-  all_ok &= test_bipolar_times_bipolar();
+  //all_ok &= test_bipolar_times_bipolar();
 
   if(all_ok) {
     cout << "All tests completed successfully" << endl;
