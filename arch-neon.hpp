@@ -205,9 +205,9 @@ static void gemmBitSerial_neon_usingBinary(GEMMContext ctx) {
   prepareAccumulators_neon(ctx);
   // call binary GEMM for each bit position
   for(uint64_t lbit = 0; lbit < lhsbits; lbit++) {
-    bool neg_lhs = ctx.lhs.issigned && (lbit == lhsbits-1);
+    bool neg_lhs = ctx.lhs.issigned && !ctx.lhs.isBipolar() && (lbit == lhsbits-1);
     for(uint64_t rbit = 0; rbit < rhsbits; rbit++) {
-      bool neg_rhs = ctx.rhs.issigned && (rbit == rhsbits-1);
+      bool neg_rhs = ctx.rhs.issigned && !ctx.rhs.isBipolar() && (rbit == rhsbits-1);
       bool neg = neg_rhs ^ neg_lhs;
       int32_t alpha = neg ? -(1 << (lbit+rbit)) : (1 << (lbit+rbit));
       alpha = ctx.isBipolarTimesRegular() ? 2*alpha : alpha;

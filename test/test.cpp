@@ -11,7 +11,7 @@ using namespace std;
 using namespace gemmbitserial;
 
 #define VERBOSE_TEST(x) ;
-#define VERBOSE_TEST(x) x
+//#define VERBOSE_TEST(x) x
 
 // Generate a random vector of -1 and +1 values of given dimension
 template <typename T>
@@ -347,12 +347,12 @@ bool test_bipolar_times_bipolar() {
 int main(int argc, char const *argv[]) {
   srand(time(NULL));
   bool all_ok = true;
-  /*all_ok &= test_conversions();
+  all_ok &= test_conversions();
   all_ok &= test_rowwise_sum();
   all_ok &= test_mnist();
-  all_ok &= test_matrix_matrix();*/
+  all_ok &= test_matrix_matrix();
   all_ok &= test_bipolar_times_regular();
-  //all_ok &= test_bipolar_times_bipolar();
+  all_ok &= test_bipolar_times_bipolar();
 
   if(all_ok) {
     cout << "All tests completed successfully" << endl;
