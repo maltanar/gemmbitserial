@@ -53,7 +53,7 @@ void benchmark_unrolledpopcount(size_t numBits, float secs) {
 
 void benchmark_gemm_interactive() {
   while(1) {
-    int rows, depth, cols, lhsbits, rhsbits;
+    int rows, depth, cols, lhsbits, rhsbits, lhssigned, rhssigned;
     float secs;
     cout << "Enter rows depth cols, 0 for next benchmark, -1 to exit " << endl;
     cin >> rows;
@@ -65,6 +65,8 @@ void benchmark_gemm_interactive() {
     cin >> depth >> cols;
     cout << "Enter lhs and rhs bits: " << endl;
     cin >> lhsbits >> rhsbits;
+    cout << "Enter signedness (1 or 0) for lhs and rhs: " << endl;
+    cin >> lhssigned >> rhssigned;
     cout << "Enter number of seconds to benchmark: " << endl;
     cin >> secs;
     // prepare workload
@@ -74,7 +76,7 @@ void benchmark_gemm_interactive() {
     generateRandomVector(lhsbits, rows*depth, rnd_matA);
     generateRandomVector(rhsbits, depth*cols, rnd_matB);
 
-    GEMMContext ctx = allocGEMMContext(rows, depth, cols, lhsbits, rhsbits, false, false);
+    GEMMContext ctx = allocGEMMContext(rows, depth, cols, lhsbits, rhsbits, (bool) lhssigned, (bool) rhssigned);
     ctx.lhs.importRegular(rnd_matA);
     ctx.rhs.importRegular(rnd_matB);
     ctx.printSummary();
