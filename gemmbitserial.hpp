@@ -125,7 +125,7 @@ public:
         T currentElem = readColMajor ? matrix[c * this->nrows + r] : matrix[r * this->ncols + c];
         if(this->isBipolar()) {
           // use bipolar binary encoding: -1 and +1 only (sign)
-          if(currentElem >= 0) {
+          if(currentElem > 0) {
             this->set(0, r, c);
           }
         } else {
