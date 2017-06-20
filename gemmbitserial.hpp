@@ -148,6 +148,39 @@ public:
     }
   }
 
+  /* Imports a regular matrix after applying threshold quantization into this BitSerialMatrix.
+  *  The threshold array is assumped to have the shape thresholds[nThres][nrows],
+  *  and is assumed to be sorted s.t. the largest thresholds have the largest index.
+  */
+  template <typename T>
+  void importRegularAndQuantize(T * matrix, T * thresholds, int nThres, bool readColMajor=false) {
+    assert(!this->issigned); // threshold qnt. only makes sense for unsigned
+    this->clearAll();
+    for(uint64_t r = 0; r < this->nrows; r++) {
+      for(uint64_t c = 0; c < this->ncols; c++) {
+        T currentElem = readColMajor ? matrix[c * this->nrows + r] : matrix[r * this->ncols + c];
+        // quantize this element by finding the index of the largest crossed
+        // threshold
+        for(int t = 0; t < nThres; t++) {
+          if(currentElem <= thresholds[t * this->nrows + r]) {
+            currentElem = t;
+            break;
+          } else if(t == nThres - 1) {
+            // all thresholds crossed, set to largest quantization level
+            currentElem = t + 1;
+          }
+        }
+        // now convert to bit serial form
+        uint8_t currentElem_uint8 = (uint8_t) currentElem;;
+        for(uint64_t b = 0; b < this->nbits; b++) {
+          if(currentElem_uint8 & (1 << b)) {
+            this->set(b, r, c);
+          }
+        }
+      }
+    }
+  }
+
   /* Convert this BitSerialMatrix back to a regular matrix.
   */
   template <typename T>
