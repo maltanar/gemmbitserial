@@ -1,6 +1,7 @@
-# gemm-bitserial
+# gemmbitserial
 
-gemm-bitserial is a simple, header-only C++ library for few-bit integer matrices.
+gemmbitserial is a simple, header-only C++ library for fast multiplication of few-bit integer matrices.
 
-It is currently under heavy development, so contributions and suggestions are
-welcome.
+A short paper regarding the underlying operation principle can be found [here](http://www.idi.ntnu.no/~yamanu/2017-cases-wip-quantizedmm-preprint.pdf).
+
+Documentation is currently underway, and all contributions/suggestions are welcome.
