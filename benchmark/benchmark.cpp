@@ -129,13 +129,18 @@ void benchmark_import_interactive() {
     }
     cin >> cols >> nbits;
     int nthres = (1 << nbits) - 1;
-    cout << "Benchmark will use " << nthres << " thresholds" << endl;
+    cout << "Enter 0 for regular import, 1 for thresholding import: " << endl;
+    int use_thres;
+    cin >> use_thres;
+    if(use_thres) {
+      cout << "Benchmark will use " << nthres << " thresholds" << endl;
+    }
     cout << "Enter 0 for no transpose, 1 for tranposed import: " << endl;
     int do_transpose;
     cin >> do_transpose;
     cout << "Enter number of seconds to benchmark: " << endl;
     cin >> secs;
-    BitSerialMatrix bsm = BitSerialMatrix::alloc(nthres+1, rows, cols, false);
+    BitSerialMatrix bsm = BitSerialMatrix::alloc(nbits, rows, cols, false);
     float * rand_mat = new float[rows*cols];
     float * rand_thres = new float[rows*nthres];
     generateRandomVector(nbits, rows*cols, rand_mat);
@@ -145,7 +150,11 @@ void benchmark_import_interactive() {
     auto end = chrono::high_resolution_clock::now();
     while (chrono::duration_cast<std::chrono::seconds>(end-start).count() < secs) {
       // =============== start of benchmark kernel =============
-      bsm.importRegularAndQuantize(rand_mat, rand_thres, nthres, (bool) do_transpose);
+      if(use_thres) {
+        bsm.importRegularAndQuantize(rand_mat, rand_thres, nthres, (bool) do_transpose);
+      } else {
+        bsm.importRegular(rand_mat, (bool) do_transpose);
+      }
       // =============== end of benchmark kernel ================
       reps += 1;
       end = chrono::high_resolution_clock::now();
