@@ -10,11 +10,12 @@ using namespace gemmbitserial;
 /**
 * Generate a random vector with given dimension and number of bits <= 8
 */
-void generateRandomVector(size_t bits, size_t dim, uint8_t * ret) {
+template <typename T>
+void generateRandomVector(size_t bits, size_t dim, T* ret) {
   uint8_t minVal = 0;
   uint8_t maxVal = (1 << bits);
   for(size_t i = 0; i < dim; i++) {
-    ret[i] = rand() % maxVal;
+    ret[i] = (T) (rand() % maxVal);
   }
 }
 
@@ -114,6 +115,53 @@ void benchmark_gemm_interactive() {
   }
 }
 
+void benchmark_import_interactive() {
+  string bench_name = "Regular-to-bitserial conversion";
+  while(1) {
+    int rows, cols, nbits;
+    float secs;
+    cout << "Enter rows cols nbits, 0 for next benchmark, -1 to exit " << endl;
+    cin >> rows;
+    if(rows == 0) {
+      break;
+    } else if (rows < 0) {
+      exit(0);
+    }
+    cin >> cols >> nbits;
+    int nthres = (1 << nbits) - 1;
+    cout << "Benchmark will use " << nthres << " thresholds" << endl;
+    cout << "Enter 0 for no transpose, 1 for tranposed import: " << endl;
+    int do_transpose;
+    cin >> do_transpose;
+    cout << "Enter number of seconds to benchmark: " << endl;
+    cin >> secs;
+    BitSerialMatrix bsm = BitSerialMatrix::alloc(nthres+1, rows, cols, false);
+    float * rand_mat = new float[rows*cols];
+    float * rand_thres = new float[rows*nthres];
+    generateRandomVector(nbits, rows*cols, rand_mat);
+    generateRandomVector(nbits, rows*nthres, rand_thres);
+    unsigned int reps = 0;
+    auto start = chrono::high_resolution_clock::now();
+    auto end = chrono::high_resolution_clock::now();
+    while (chrono::duration_cast<std::chrono::seconds>(end-start).count() < secs) {
+      // =============== start of benchmark kernel =============
+      bsm.importRegularAndQuantize(rand_mat, rand_thres, nthres, (bool) do_transpose);
+      // =============== end of benchmark kernel ================
+      reps += 1;
+      end = chrono::high_resolution_clock::now();
+      // ignore the first iteration, it's just for warmup
+      if(reps == 1) {
+        start = end;
+      }
+    }
+    float mscount = chrono::duration_cast<std::chrono::milliseconds>(end-start).count() / (float)reps;
+    cout << "Completed " << reps << " iterations, " << mscount << " ms per iteration" << endl;
+    BitSerialMatrix::dealloc(bsm);
+    delete [] rand_mat;
+    delete [] rand_thres;
+  }
+}
+
 void benchmark_caffenet(float secs) {
   string bench_name = "CaffeNet matrices";
   const int caffenet_gemm_sizes[] = {
@@ -180,6 +228,7 @@ void benchmark_caffenet(float secs) {
 }
 
 int main(int argc, char const *argv[]) {
+  benchmark_import_interactive();
   benchmark_gemm_interactive();
   benchmark_caffenet(20);
 
