@@ -115,10 +115,12 @@ public:
     return col & ((1 << 6) - 1);
   }
 
-  /* Imports a regular matrix into this BitSerialMatrix.
+  /*
+  Imports a regular matrix into this BitSerialMatrix. This is a slow, "naive"
+  implementation.
   */
   template <typename T>
-  void importRegular(T * matrix, bool readColMajor=false) {
+  void importRegular_naive(T * matrix, bool readColMajor=false) {
     this->clearAll();
     for(uint64_t r = 0; r < this->nrows; r++) {
       for(uint64_t c = 0; c < this->ncols; c++) {
@@ -142,6 +144,79 @@ public:
             if(currentElem_uint8 & (1 << b)) {
               this->set(b, r, c);
             }
+          }
+        }
+      }
+    }
+  }
+
+  /*
+    Map given element of datatype T to uint8_t based on chosen quantization
+  */
+  template <typename T>
+  inline uint8_t quantize(T currentElem) {
+    uint8_t ret = 0;
+    if(this->isBipolar()) {
+      // use bipolar binary encoding: -1 and +1 only (sign)
+      ret = currentElem > 0 ? 1 : 0;
+    } else {
+      // use two's complement
+      if(this->issigned && currentElem < 0) {
+        // convert to two's complement for this bitwidth
+        ret += (uint8_t)(1 << (this->nbits - 1));
+        ret += (uint8_t)(currentElem + (1 << (this->nbits - 1)));
+      } else {
+        ret = (uint8_t) currentElem;
+      }
+    }
+    return ret;
+  }
+
+  /* Imports a regular matrix into this BitSerialMatrix, using bit twiddling
+  tricks to go faster.
+  */
+  template <typename T>
+  void importRegular(T * matrix, bool readColMajor=false) {
+    this->clearAll();
+    const uint64_t cols_d4 = this->ncols - (this->ncols % 4);
+    const uint64_t cols_rem = (this->ncols % 4);
+    for(uint64_t r = 0; r < this->nrows; r++) {
+      // handle conversion of 4-column chunks
+      for(uint64_t c = 0; c < cols_d4; c+= 4) {
+        // fetch four elements from row
+        T e0 = readColMajor ? matrix[c * this->nrows + r] : matrix[r * this->ncols + c];
+        T e1 = readColMajor ? matrix[(c+1) * this->nrows + r] : matrix[r * this->ncols + (c+1)];
+        T e2 = readColMajor ? matrix[(c+2) * this->nrows + r] : matrix[r * this->ncols + (c+2)];
+        T e3 = readColMajor ? matrix[(c+3) * this->nrows + r] : matrix[r * this->ncols + (c+3)];
+        // cast all to uint8_t
+        uint8_t b0 = this->quantize(e0);
+        uint8_t b1 = this->quantize(e1);
+        uint8_t b2 = this->quantize(e2);
+        uint8_t b3 = this->quantize(e3);
+        // pack into uint32_t
+        uint32_t group = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+        // leftshift to align actual msb with leftmost bit position
+        group = group << (8 - this->nbits);
+        // pack each bit position using Wojciech Mula's movmask approach:
+        // http://0x80.pl/articles/scalar-sse-movmask.html
+        for(uint64_t b = this->nbits; b-- > 0; ) {
+          const uint32_t input = group & 0x80808080;
+          const uint32_t mult = 0x02040810;
+          const uint64_t result = (uint64_t)input * mult;
+          const uint8_t res8 = (uint8_t)((result >> 32));
+          // put lowermost 4 bits of res8 into appropriate data buf pos
+          this->word(b, r, c) |= (uint64_t)(res8 & 0x0f) << this->bitpos(c);
+          // left shift for next bit group
+          group = group << 1;
+        }
+      }
+      // fallback to naive to handle remainder of columns
+      for(uint64_t c = cols_d4; c < this->ncols; c++) {
+        T e0 = readColMajor ? matrix[c * this->nrows + r] : matrix[r * this->ncols + c];
+        uint8_t b0 = this->quantize(e0);
+        for(uint64_t b = 0; b < this->nbits; b++) {
+          if(b0 & (1 << b)) {
+            this->set(b, r, c);
           }
         }
       }
