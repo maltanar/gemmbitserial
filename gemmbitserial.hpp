@@ -172,6 +172,27 @@ public:
     return ret;
   }
 
+  /*
+  Import four bytes packed into a single uint32_t into row r, starting with
+  column c. Intended for internal use.
+  */
+  inline void import32As4x8(const uint32_t igroup, const uint64_t r, const uint64_t c) {
+    // leftshift to align actual msb with leftmost bit position
+    uint32_t group = igroup << (8 - this->nbits);
+    // pack each bit position using Wojciech Mula's movmask approach:
+    // http://0x80.pl/articles/scalar-sse-movmask.html
+    for(uint64_t b = this->nbits; b-- > 0; ) {
+      const uint32_t input = group & 0x80808080;
+      const uint32_t mult = 0x02040810;
+      const uint64_t result = (uint64_t)input * mult;
+      const uint8_t res8 = (uint8_t)((result >> 32));
+      // put lowermost 4 bits of res8 into appropriate data buf pos
+      this->word(b, r, c) |= (uint64_t)(res8 & 0x0f) << this->bitpos(c);
+      // left shift for next bit group
+      group = group << 1;
+    }
+  }
+
   /* Imports a regular matrix into this BitSerialMatrix, using bit twiddling
   tricks to go faster.
   */
@@ -193,27 +214,44 @@ public:
         uint8_t b1 = this->quantize(e1);
         uint8_t b2 = this->quantize(e2);
         uint8_t b3 = this->quantize(e3);
-        // pack into uint32_t
+        // pack into uint32_t and call import function
         uint32_t group = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
-        // leftshift to align actual msb with leftmost bit position
-        group = group << (8 - this->nbits);
-        // pack each bit position using Wojciech Mula's movmask approach:
-        // http://0x80.pl/articles/scalar-sse-movmask.html
-        for(uint64_t b = this->nbits; b-- > 0; ) {
-          const uint32_t input = group & 0x80808080;
-          const uint32_t mult = 0x02040810;
-          const uint64_t result = (uint64_t)input * mult;
-          const uint8_t res8 = (uint8_t)((result >> 32));
-          // put lowermost 4 bits of res8 into appropriate data buf pos
-          this->word(b, r, c) |= (uint64_t)(res8 & 0x0f) << this->bitpos(c);
-          // left shift for next bit group
-          group = group << 1;
-        }
+        import32As4x8(group, r, c);
       }
       // fallback to naive to handle remainder of columns
       for(uint64_t c = cols_d4; c < this->ncols; c++) {
         T e0 = readColMajor ? matrix[c * this->nrows + r] : matrix[r * this->ncols + c];
         uint8_t b0 = this->quantize(e0);
+        for(uint64_t b = 0; b < this->nbits; b++) {
+          if(b0 & (1 << b)) {
+            this->set(b, r, c);
+          }
+        }
+      }
+    }
+  }
+
+  /* Specialized variant of importRegular for uint8_t, which needs no conversion.
+  */
+  void importRegular(uint8_t * matrix, bool readColMajor=false) {
+    this->clearAll();
+    const uint64_t cols_d4 = this->ncols - (this->ncols % 4);
+    const uint64_t cols_rem = (this->ncols % 4);
+    for(uint64_t r = 0; r < this->nrows; r++) {
+      // handle conversion of 4-column chunks
+      for(uint64_t c = 0; c < cols_d4; c+= 4) {
+        // fetch four elements from row
+        uint8_t b0 = readColMajor ? matrix[c * this->nrows + r] : matrix[r * this->ncols + c];
+        uint8_t b1 = readColMajor ? matrix[(c+1) * this->nrows + r] : matrix[r * this->ncols + (c+1)];
+        uint8_t b2 = readColMajor ? matrix[(c+2) * this->nrows + r] : matrix[r * this->ncols + (c+2)];
+        uint8_t b3 = readColMajor ? matrix[(c+3) * this->nrows + r] : matrix[r * this->ncols + (c+3)];
+        // pack into uint32_t and call import function
+        uint32_t group = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+        import32As4x8(group, r, c);
+      }
+      // fallback to naive to handle remainder of columns
+      for(uint64_t c = cols_d4; c < this->ncols; c++) {
+        uint8_t b0 = readColMajor ? matrix[c * this->nrows + r] : matrix[r * this->ncols + c];
         for(uint64_t b = 0; b < this->nbits; b++) {
           if(b0 & (1 << b)) {
             this->set(b, r, c);

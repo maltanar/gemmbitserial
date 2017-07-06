@@ -141,8 +141,8 @@ void benchmark_import_interactive() {
     cout << "Enter number of seconds to benchmark: " << endl;
     cin >> secs;
     BitSerialMatrix bsm = BitSerialMatrix::alloc(nbits, rows, cols, false);
-    float * rand_mat = new float[rows*cols];
-    float * rand_thres = new float[rows*nthres];
+    uint8_t * rand_mat = new uint8_t[rows*cols];
+    uint8_t * rand_thres = new uint8_t[rows*nthres];
     generateRandomVector(nbits, rows*cols, rand_mat);
     generateRandomVector(nbits, rows*nthres, rand_thres);
     unsigned int reps = 0;
