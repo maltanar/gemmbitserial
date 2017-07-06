@@ -237,8 +237,8 @@ void benchmark_caffenet(float secs) {
 }
 
 int main(int argc, char const *argv[]) {
-  benchmark_import_interactive();
   benchmark_gemm_interactive();
+  benchmark_import_interactive();
   benchmark_caffenet(20);
 
   vector<size_t> dims {256, 512, 1024, 2048, 4096, 8192, 16384};
