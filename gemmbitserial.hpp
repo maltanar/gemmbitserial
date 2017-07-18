@@ -386,6 +386,10 @@ public:
   inline bool isBipolarTimesBipolar() const {
     return (lhs.isBipolar() && rhs.isBipolar());
   }
+
+  inline bool isMatrixVector() const {
+    return rhs.nrows == 1;
+  }
 };
 
 // Base functionality for allocating a GEMM context. Do not use directly,
