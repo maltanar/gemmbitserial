@@ -50,6 +50,28 @@ static inline uint64_t xor_popcount_neon(uint64_t * rowptrA, uint64_t * rowptrB,
   return ret;
 }
 
+static inline uint64_t and_popcount_neon(uint64_t * rowptrA, uint64_t * rowptrB, uint64_t numElems) {
+  uint64_t ret = 0;
+  const uint64_t DepthTile = 2;
+  uint8x16_t acc_neon = vcombine_u8(vcreate_u8(0), vcreate_u8(0));
+  uint64x2_t acc2_neon = vcombine_u64(vcreate_u64(0), vcreate_u64(0));
+  for(uint64_t c = 0; c < numElems; c += DepthTile) {
+    uint8x16_t a0 = vld1q_u8((uint8_t *) &rowptrA[c]);
+    uint8x16_t b0 = vld1q_u8((uint8_t *) &rowptrB[c]);
+    acc_neon = vaddq_u8(acc_neon, vcntq_u8(vandq_u8(a0, b0)));
+    if((c & 7L) == 7L) {
+      // hsum over 8-bit accumulators when end or overflow
+      acc2_neon = vaddq_u64(acc2_neon, vpaddlq_u32(vpaddlq_u16(vpaddlq_u8(acc_neon))));
+      acc_neon = vcombine_u8(vcreate_u8(0), vcreate_u8(0));
+    }
+  }
+  // move into regular accumulators
+  uint64_t tmp[2];
+  acc2_neon = vaddq_u64(acc2_neon, vpaddlq_u32(vpaddlq_u16(vpaddlq_u8(acc_neon))));
+  vst1q_u64(tmp, acc2_neon);
+  ret = (tmp[0] + tmp[1]);
+  return ret;
+}
 
 // Compute the row-wise sum of a bit-serial matrix
 static void sumRows_neon(BitSerialMatrix m, int32_t * row_sums) {
@@ -312,7 +334,7 @@ static void gemvBitSerial_neon(GEMMContext ctx) {
         bool neg_rhs = ctx.rhs.issigned && !ctx.rhs.isBipolar() && (rbit == rhsbits-1);
         uint64_t * ldata = ctx.lhs.rowptr(lbit, j);
         uint64_t * rdata = ctx.rhs.rowptr(rbit, 0);
-        uint64_t andcard = (int32_t) xor_popcount_neon(ldata, rdata, depth);
+        uint64_t andcard = (int32_t) and_popcount_neon(ldata, rdata, depth);
         // scale
         andcard = andcard << (lbit + rbit + bpreg_scale);
         // negate if needed
