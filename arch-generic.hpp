@@ -58,6 +58,7 @@ static void prepareAccumulators_generic(GEMMContext ctx) {
     int32_t * rowwise_sum = new int32_t[regularM.nrows];
     sumRows_generic(regularM, rowwise_sum);
     // initialize result matrix accumulators from sum
+    #pragma omp parallel for
     for(auto res_row = 0; res_row < ctx.rhs.nrows; res_row++) {
       for(auto res_col = 0; res_col < ctx.lhs.nrows; res_col++) {
         if(lhsBipolar) {
@@ -112,7 +113,7 @@ inline void gemmBinary_generic_chunk_tile2x1x2(
   uint64_t rowsA_orig, uint64_t rowsBT_orig) {
   const uint64_t Atile = 2, DepthTile = 1, BTtile = 2;
   const size_t num_acc = Atile*BTtile;
-
+  #pragma omp parallel for
   for(uint64_t rBT = bBT; rBT < bBT + rhs_block; rBT += BTtile) {
     uint64_t * BTptr = &BT[rBT * depth_words];
     for(uint64_t rA = bA; rA < bA + lhs_block; rA += Atile) {
@@ -151,7 +152,6 @@ static void gemmBinary_generic_L1_tile2x1x2(
   assert(rowsA % lhsBlock == 0);
   assert(lhsBlock % Atile == 0);
   assert(rhsBlock % BTtile == 0);
-
   for(uint64_t bBT = 0; bBT < rowsBT; bBT += rhsBlock) {
     for(uint64_t bA = 0; bA < rowsA; bA += lhsBlock) {
       gemmBinary_generic_chunk_tile2x1x2(
@@ -310,6 +310,8 @@ static void gemvBipolar_generic(GEMMContext ctx) {
   const uint64_t out_rows = ctx.lhs.nrows;
   const uint64_t depth = ctx.lhs.wordsPerRow();
   prepareAccumulators_generic(ctx);
+  // adding openmp parallel for here actually slowed down FC layers, so it's
+  // omitted.
   for(uint64_t j = 0; j < out_rows; j++) {
     int32_t rowres = 0;
     uint64_t * ldata = ctx.lhs.rowptr(0, j);

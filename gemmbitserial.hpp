@@ -237,6 +237,7 @@ public:
     this->clearAll();
     const uint64_t cols_d4 = this->ncols - (this->ncols % 4);
     const uint64_t cols_rem = (this->ncols % 4);
+    #pragma omp parallel for
     for(uint64_t r = 0; r < this->nrows; r++) {
       // handle conversion of 4-column chunks
       for(uint64_t c = 0; c < cols_d4; c+= 4) {
