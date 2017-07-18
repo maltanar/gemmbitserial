@@ -76,7 +76,7 @@ static inline uint64_t and_popcount_neon(uint64_t * rowptrA, uint64_t * rowptrB,
 // Compute the row-wise sum of a bit-serial matrix
 static void sumRows_neon(BitSerialMatrix m, int32_t * row_sums) {
   const uint64_t nc = m.wordsPerRow();
-
+#pragma omp parallel for
   for(uint64_t r = 0; r < m.nrows; r++) {
     int32_t row_acc = 0;
     if(m.isBipolar()) {
@@ -179,7 +179,7 @@ static void gemmBinary_neon_L1_tile4x2x2(
   assert(rowsA % lhsBlock == 0);
   assert(lhsBlock % Atile == 0);
   assert(rhsBlock % BTtile == 0);
-
+#pragma omp parallel for
   for(uint64_t bBT = 0; bBT < rowsBT; bBT += rhsBlock) {
     for(uint64_t bA = 0; bA < rowsA; bA += lhsBlock) {
       const size_t num_acc = Atile*BTtile;
