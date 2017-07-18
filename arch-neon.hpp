@@ -50,6 +50,28 @@ static inline uint64_t xor_popcount_neon(uint64_t * rowptrA, uint64_t * rowptrB,
   return ret;
 }
 
+static inline uint64_t and_popcount_neon(uint64_t * rowptrA, uint64_t * rowptrB, uint64_t numElems) {
+  uint64_t ret = 0;
+  const uint64_t DepthTile = 2;
+  uint8x16_t acc_neon = vcombine_u8(vcreate_u8(0), vcreate_u8(0));
+  uint64x2_t acc2_neon = vcombine_u64(vcreate_u64(0), vcreate_u64(0));
+  for(uint64_t c = 0; c < numElems; c += DepthTile) {
+    uint8x16_t a0 = vld1q_u8((uint8_t *) &rowptrA[c]);
+    uint8x16_t b0 = vld1q_u8((uint8_t *) &rowptrB[c]);
+    acc_neon = vaddq_u8(acc_neon, vcntq_u8(vandq_u8(a0, b0)));
+    if((c & 7L) == 7L) {
+      // hsum over 8-bit accumulators when end or overflow
+      acc2_neon = vaddq_u64(acc2_neon, vpaddlq_u32(vpaddlq_u16(vpaddlq_u8(acc_neon))));
+      acc_neon = vcombine_u8(vcreate_u8(0), vcreate_u8(0));
+    }
+  }
+  // move into regular accumulators
+  uint64_t tmp[2];
+  acc2_neon = vaddq_u64(acc2_neon, vpaddlq_u32(vpaddlq_u16(vpaddlq_u8(acc_neon))));
+  vst1q_u64(tmp, acc2_neon);
+  ret = (tmp[0] + tmp[1]);
+  return ret;
+}
 
 // Compute the row-wise sum of a bit-serial matrix
 static void sumRows_neon(BitSerialMatrix m, int32_t * row_sums) {
@@ -130,10 +152,18 @@ static GEMMContext allocGEMMContext_neon(
   const uint64_t regblock_rhs = 2;
   const uint64_t cacheBits = 16*1024*8;
 
-  return allocGEMMContext_base(
-    lhsRows, depth, rhsRows, lhsBits, rhsBits, lhsSigned, rhsSigned,
-    regblock_lhs, regblock_d, regblock_rhs, cacheBits
-  );
+  if(rhsRows == 1) {
+    // matrix-vector only needs depth alignment
+    return allocGEMMContext_base(
+      lhsRows, depth, rhsRows, lhsBits, rhsBits, lhsSigned, rhsSigned,
+      1, regblock_d, 1, cacheBits
+    );
+  } else {
+    return allocGEMMContext_base(
+      lhsRows, depth, rhsRows, lhsBits, rhsBits, lhsSigned, rhsSigned,
+      regblock_lhs, regblock_d, regblock_rhs, cacheBits
+    );
+  }
 };
 
 /* CT = A * BT using cache blocking and 2x1x2 register blocking where possible.
@@ -266,10 +296,67 @@ static void gemmBipolar_neon_naive(GEMMContext ctx) {
   }
 }
 
+// neon bipolar matrix times vector (GEMV)
+static void gemvBipolar_neon(GEMMContext ctx) {
+  // ensure that matrix shapes are compatible
+  assert(ctx.lhs.ncols == ctx.rhs.ncols);
+  assert(ctx.lhs.isBipolar() && ctx.rhs.isBipolar());
+  const uint64_t out_rows = ctx.lhs.nrows;
+  const uint64_t depth = ctx.lhs.wordsPerRow();
+  prepareAccumulators_generic(ctx);
+  for(uint64_t j = 0; j < out_rows; j++) {
+    uint64_t * ldata = ctx.lhs.rowptr(0, j);
+    uint64_t * rdata = ctx.rhs.rowptr(0, 0);
+    // XNOR-popcount-accumulate over row pair. note that we do XOR-popcount
+    // to save one instruction (no need to invert the XOR result). this is
+    // accounted for in the correction afterwards.
+    int32_t rowres = (int32_t) xor_popcount_neon(ldata, rdata, depth);
+    // correction for sum of 1 and -1 bits
+    ctx.res[j] +=  -2 * rowres + ctx.lhs.ncols;
+  }
+}
+
+// neon bit serial matrix times vector (GEMV)
+static void gemvBitSerial_neon(GEMMContext ctx) {
+  // ensure that matrix shapes are compatible
+  assert(ctx.lhs.ncols == ctx.rhs.ncols);
+  const uint64_t lhsbits = ctx.lhs.nbits;
+  const uint64_t rhsbits = ctx.rhs.nbits;
+  const uint64_t out_rows = ctx.lhs.nrows;
+  const uint64_t depth = ctx.lhs.wordsPerRow();
+  uint64_t bpreg_scale = ctx.isBipolarTimesRegular() ? 1 : 0;
+  prepareAccumulators_generic(ctx);
+  for(uint64_t j = 0; j < out_rows; j++) {
+    int32_t rowres = 0;
+    for(uint64_t lbit = 0; lbit < lhsbits; lbit++) {
+      bool neg_lhs = ctx.lhs.issigned && !ctx.lhs.isBipolar() && (lbit == lhsbits-1);
+      for(uint64_t rbit = 0; rbit < rhsbits; rbit++) {
+        bool neg_rhs = ctx.rhs.issigned && !ctx.rhs.isBipolar() && (rbit == rhsbits-1);
+        uint64_t * ldata = ctx.lhs.rowptr(lbit, j);
+        uint64_t * rdata = ctx.rhs.rowptr(rbit, 0);
+        uint64_t andcard = (int32_t) and_popcount_neon(ldata, rdata, depth);
+        // scale
+        andcard = andcard << (lbit + rbit + bpreg_scale);
+        // negate if needed
+        rowres += (neg_lhs ^ neg_rhs) ? -andcard : andcard;
+      }
+    }
+    ctx.res[j] += rowres;
+  }
+}
+
 static void gemmBitSerial_neon(GEMMContext ctx) {
-  if(ctx.isBipolarTimesBipolar()) {
-    gemmBipolar_neon_naive(ctx);
+  if(ctx.isMatrixVector()) {
+    if(ctx.isBipolarTimesBipolar()) {
+      gemvBipolar_neon(ctx);
+    } else {
+      gemvBitSerial_neon(ctx);
+    }
   } else {
-    gemmBitSerial_neon_usingBinary(ctx);
+    if(ctx.isBipolarTimesBipolar()) {
+      gemmBipolar_neon_naive(ctx);
+    } else {
+      gemmBitSerial_neon_usingBinary(ctx);
+    }
   }
 }
