@@ -275,7 +275,7 @@ static void gemmBipolar_neon_naive(GEMMContext ctx) {
 }
 
 // neon bipolar matrix times vector (GEMV)
-static void gemmBipolar_neon(GEMMContext ctx) {
+static void gemvBipolar_neon(GEMMContext ctx) {
   // ensure that matrix shapes are compatible
   assert(ctx.lhs.ncols == ctx.rhs.ncols);
   assert(ctx.lhs.isBipolar() && ctx.rhs.isBipolar());
@@ -284,7 +284,7 @@ static void gemmBipolar_neon(GEMMContext ctx) {
   prepareAccumulators_generic(ctx);
   for(uint64_t j = 0; j < out_rows; j++) {
     uint64_t * ldata = ctx.lhs.rowptr(0, j);
-    uint64_t * rdata = ctx.rhs.rowptr(0, i);
+    uint64_t * rdata = ctx.rhs.rowptr(0, 0);
     // XNOR-popcount-accumulate over row pair. note that we do XOR-popcount
     // to save one instruction (no need to invert the XOR result). this is
     // accounted for in the correction afterwards.
