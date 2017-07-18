@@ -85,18 +85,10 @@ static GEMMContext allocGEMMContext_generic(
   const uint64_t regblock_rhs = 2;
   const uint64_t cacheBits = 32*1024*8;
 
-  if(rhsRows == 1) {
-    // matrix-vector only needs depth alignment
-    return allocGEMMContext_base(
-      lhsRows, depth, rhsRows, lhsBits, rhsBits, lhsSigned, rhsSigned,
-      1, 4, 1, cacheBits
-    );
-  } else {
-    return allocGEMMContext_base(
-      lhsRows, depth, rhsRows, lhsBits, rhsBits, lhsSigned, rhsSigned,
-      regblock_lhs, regblock_d, regblock_rhs, cacheBits
-    );
-  }
+  return allocGEMMContext_base(
+    lhsRows, depth, rhsRows, lhsBits, rhsBits, lhsSigned, rhsSigned,
+    regblock_lhs, regblock_d, regblock_rhs, cacheBits
+  );
 };
 
 
@@ -231,6 +223,7 @@ static void gemmBitSerial_generic_naive(GEMMContext ctx) {
   }
 }
 
+
 // Special case: bipolar times bipolar matrix multiplication. These use
 // XNOR-popcount instead of AND-popcount, and also need an additional correction
 // step to account for zeroes being treated as -1 bits
@@ -261,85 +254,10 @@ static void gemmBipolar_generic_naive(GEMMContext ctx) {
   }
 }
 
-/* Standalone bit-serial GEMV (matrix-vector). Note that rhs must be given in transposed
-   form, and the result is also produced transposed.
-*/
-static void gemvBitSerial_generic(GEMMContext ctx) {
-  // ensure that matrix shapes are compatible
-  assert(ctx.lhs.ncols == ctx.rhs.ncols);
-  const uint64_t lhsbits = ctx.lhs.nbits;
-  const uint64_t rhsbits = ctx.rhs.nbits;
-  const uint64_t out_rows = ctx.lhs.nrows;
-  const uint64_t depth = ctx.lhs.wordsPerRow();
-  uint64_t bpreg_scale = ctx.isBipolarTimesRegular() ? 1 : 0;
-  prepareAccumulators_generic(ctx);
-  for(uint64_t j = 0; j < out_rows; j++) {
-    int32_t rowres = 0;
-    for(uint64_t lbit = 0; lbit < lhsbits; lbit++) {
-      bool neg_lhs = ctx.lhs.issigned && !ctx.lhs.isBipolar() && (lbit == lhsbits-1);
-      for(uint64_t rbit = 0; rbit < rhsbits; rbit++) {
-        bool neg_rhs = ctx.rhs.issigned && !ctx.rhs.isBipolar() && (rbit == rhsbits-1);
-        uint64_t * ldata = ctx.lhs.rowptr(lbit, j);
-        uint64_t * rdata = ctx.rhs.rowptr(rbit, 0);
-        uint64_t andcard = 0;
-        // AND-popcount-accumulate over row pair
-        for(uint64_t k = 0; k < depth; k+=4) {
-          andcard += __builtin_popcountll(ldata[k] & rdata[k]);
-          andcard += __builtin_popcountll(ldata[k+1] & rdata[k+1]);
-          andcard += __builtin_popcountll(ldata[k+2] & rdata[k+2]);
-          andcard += __builtin_popcountll(ldata[k+3] & rdata[k+3]);
-        }
-        // scale
-        andcard = andcard << (lbit + rbit + bpreg_scale);
-        // negate if needed
-        rowres += (neg_lhs ^ neg_rhs) ? -andcard : andcard;
-      }
-    }
-    ctx.res[j] += rowres;
-  }
-}
-
-// Special case: bipolar times bipolar matrix vector multiplication. These use
-// XNOR-popcount instead of AND-popcount, and also need an additional correction
-// step to account for zeroes being treated as -1 bits
-
-static void gemvBipolar_generic(GEMMContext ctx) {
-  // ensure that matrix shapes are compatible
-  assert(ctx.lhs.ncols == ctx.rhs.ncols);
-  assert(ctx.lhs.isBipolar() && ctx.rhs.isBipolar());
-  const uint64_t out_rows = ctx.lhs.nrows;
-  const uint64_t depth = ctx.lhs.wordsPerRow();
-  prepareAccumulators_generic(ctx);
-  for(uint64_t j = 0; j < out_rows; j++) {
-    int32_t rowres = 0;
-    uint64_t * ldata = ctx.lhs.rowptr(0, j);
-    uint64_t * rdata = ctx.rhs.rowptr(0, 0);
-    // XNOR-popcount-accumulate over row pair. note that we do XOR-popcount
-    // to save one instruction (no need to invert the XOR result). this is
-    // accounted for in the correction afterwards.
-    for(uint64_t k = 0; k < depth; k+=4) {
-      rowres += __builtin_popcountll(ldata[k] ^ rdata[k]);
-      rowres += __builtin_popcountll(ldata[k+1] ^ rdata[k+1]);
-      rowres += __builtin_popcountll(ldata[k+2] ^ rdata[k+2]);
-      rowres += __builtin_popcountll(ldata[k+3] ^ rdata[k+3]);
-    }
-    // correction for sum of 1 and -1 bits
-    ctx.res[j] +=  -2 * rowres + ctx.lhs.ncols;
-  }
-}
-
 static void gemmBitSerial_generic(GEMMContext ctx) {
-  if(ctx.isMatrixVector()) {
-    if(ctx.isBipolarTimesBipolar()) {
-      gemvBipolar_generic(ctx);
-    } else {
-      gemvBitSerial_generic(ctx);
-    }
+  if(ctx.isBipolarTimesBipolar()) {
+    gemmBipolar_generic_naive(ctx);
   } else {
-    if(ctx.isBipolarTimesBipolar()) {
-      gemmBipolar_generic_naive(ctx);
-    } else {
-      gemmBitSerial_generic_usingBinary(ctx);
-    }
+    gemmBitSerial_generic_usingBinary(ctx);
   }
 }
