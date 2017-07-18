@@ -182,43 +182,44 @@ bool test_conversions() {
 bool test_matrix_matrix() {
   vector<size_t> param_bits {2, 3, 4};
   vector<size_t> param_dims {3, 5, 7, 16, 17, 18, 30, 31, 32, 100, 177, 256};
+  vector<int> do_matrix_vector {0, 1};
 
-  deque<bool> param_allow_neg {false, true};
   unsigned int numConfigs = 0, ok = 0, nok = 0;
   for(auto & b: param_bits) {
     for(auto & d: param_dims) {
-      uint8_t * rnd_mat_a = new uint8_t[d*d*2];
-      uint8_t * rnd_mat_b = new uint8_t[2*d*d*3];
-      int32_t * res_mat_golden = new int32_t[d*d*3];
-      generateRandomVector(b, d*d*2, rnd_mat_a);
-      generateRandomVector(b, 2*d*d*3, rnd_mat_b);
-      naive_int_gemm(rnd_mat_a, rnd_mat_b, res_mat_golden, d, 2*d, d*3);
-      GEMMContext ctx = allocGEMMContext(d, 2*d, 3*d, b, b, false, false);
-      ctx.lhs.importRegular(rnd_mat_a);
-      ctx.rhs.importRegular(rnd_mat_b);
+      for(auto & mv: do_matrix_vector) {
+        uint8_t * rnd_mat_a = new uint8_t[d*d*2];
+        uint8_t * rnd_mat_b = new uint8_t[2*d*(mv ? 1 : d*3)];
+        int32_t * res_mat_golden = new int32_t[d*(mv ? 1 : d*3)];
+        generateRandomVector(b, d*d*2, rnd_mat_a);
+        generateRandomVector(b, 2*d*(mv ? 1 : d*3), rnd_mat_b);
+        naive_int_gemm(rnd_mat_a, rnd_mat_b, res_mat_golden, d, 2*d, (mv ? 1 : d*3));
+        GEMMContext ctx = allocGEMMContext(d, 2*d, (mv ? 1 : d*3), b, b, false, false);
+        ctx.lhs.importRegular(rnd_mat_a);
+        ctx.rhs.importRegular(rnd_mat_b);
 
-      gemmBitSerial(ctx);
-      //ctx.printSummary();
-      //printmatrix(rnd_mat_a, d, d*2);
-      //printmatrix(rnd_mat_b, d*3, d*2);
-      //printmatrix(res_mat_golden, d*3, d);
-      //printmatrix(ctx.res, d*3, d);
+        gemmBitSerial(ctx);
+        //ctx.printSummary();
+        //printmatrix(rnd_mat_a, d, d*2);
+        //printmatrix(rnd_mat_b, d*3, d*2);
+        //printmatrix(res_mat_golden, d*3, d);
+        //printmatrix(ctx.res, d*3, d);
 
-      int rbytes = d*d*3*sizeof(int32_t);
-      int res = memcmp(ctx.res, res_mat_golden, rbytes);
-      if(res == 0) {
-        ok++;
-      } else {
-        nok++;
-        //printmatrixdiff(res_mat, res_mat_golden, 3*d, d);
+        int rbytes = d*(mv ? 1 : d*3)*sizeof(int32_t);
+        int res = memcmp(ctx.res, res_mat_golden, rbytes);
+        if(res == 0) {
+          ok++;
+        } else {
+          nok++;
+          //printmatrixdiff(res_mat, res_mat_golden, 3*d, d);
+        }
+        delete [] rnd_mat_a;
+        delete [] rnd_mat_b;
+        delete [] res_mat_golden;
+        deallocGEMMContext(ctx);
+        numConfigs++;
+        VERBOSE_TEST(cout << "Bits = " << b << " dim = " << d << " result = " << res << endl);
       }
-      delete [] rnd_mat_a;
-      delete [] rnd_mat_b;
-      delete [] res_mat_golden;
-      deallocGEMMContext(ctx);
-      numConfigs++;
-      VERBOSE_TEST(cout << "Bits = " << b << " dim = " << d << " result = " << res << endl);
-
     }
   }
   cout << "Matrix matrix multiplication tests: " << ok << " OK, " << nok << " NOK" << endl;
@@ -307,38 +308,41 @@ bool test_bipolar_times_regular() {
 
 bool test_bipolar_times_bipolar() {
   vector<size_t> param_dims {3, 5, 7, 16, 17, 18, 30, 31, 32, 100, 177, 256};
+  vector<int> do_matrix_vector {0, 1};
   unsigned int numConfigs = 0, ok = 0, nok = 0;
 
   for(auto & d: param_dims) {
-    int8_t * lhs_mat = new int8_t[d*d];
-    int8_t * rhs_mat = new int8_t[d*d];
-    int32_t * res_golden = new int32_t[d*d];
-    int32_t * res_chk = new int32_t[d*d];
-    GEMMContext ctx = allocGEMMContext(
-      d, d, d, 1, 1, true, true
-    );
-    generateRandomVector_Bipolar(d*d, lhs_mat);
-    generateRandomVector_Bipolar(d*d, rhs_mat);
-    ctx.lhs.importRegular(lhs_mat);
-    ctx.rhs.importRegular(rhs_mat);
-    gemmBitSerial(ctx);
-    naive_int_gemm(lhs_mat, rhs_mat, res_golden, d, d, d);
-    //printmatrix(lhs_mat, d, d);
-    //printmatrix(rhs_mat, d, d);
-    //printmatrix(res_golden, d, d);
-    //printmatrix(ctx.res, d, d);
-    int res = memcmp(res_golden, ctx.res, sizeof(int32_t)*d*d);
-    if(res == 0) {
-      ok++;
-    } else {
-      nok++;
+    for(auto & mv: do_matrix_vector) {
+      int8_t * lhs_mat = new int8_t[d*d];
+      int8_t * rhs_mat = new int8_t[mv ? d : d*d];
+      int32_t * res_golden = new int32_t[mv ? d : d*d];
+      int32_t * res_chk = new int32_t[mv ? d : d*d];
+      GEMMContext ctx = allocGEMMContext(
+        d, d, mv ? 1 : d, 1, 1, true, true
+      );
+      generateRandomVector_Bipolar(d*d, lhs_mat);
+      generateRandomVector_Bipolar(mv ? d : d*d, rhs_mat);
+      ctx.lhs.importRegular(lhs_mat);
+      ctx.rhs.importRegular(rhs_mat);
+      gemmBitSerial(ctx);
+      naive_int_gemm(lhs_mat, rhs_mat, res_golden, d, d, mv ? 1 : d);
+      //printmatrix(lhs_mat, d, d);
+      //printmatrix(rhs_mat, d, d);
+      //printmatrix(res_golden, d, d);
+      //printmatrix(ctx.res, d, d);
+      int res = memcmp(res_golden, ctx.res, sizeof(int32_t)*d*(mv ? 1 : d));
+      if(res == 0) {
+        ok++;
+      } else {
+        nok++;
+      }
+      numConfigs++;
+      delete [] lhs_mat;
+      delete [] rhs_mat;
+      delete [] res_golden;
+      delete [] res_chk;
+      deallocGEMMContext(ctx);
     }
-    numConfigs++;
-    delete [] lhs_mat;
-    delete [] rhs_mat;
-    delete [] res_golden;
-    delete [] res_chk;
-    deallocGEMMContext(ctx);
   }
   cout << "Bipolar times bipolar tests: " << ok << " OK, " << nok << " NOK" << endl;
   return ok == numConfigs;
