@@ -4,6 +4,7 @@
 #include <cassert>
 #include <iostream>
 #include <math.h>
+#include <omp.h>
 
 namespace gemmbitserial {
 
@@ -364,6 +365,7 @@ public:
   BitSerialMatrix lhs, rhs;
   uint64_t lhsBlock, rhsBlock;
   int32_t * res;
+  uint32_t num_threads;
 
   void printSummary() {
     std::cout << "GEMMContext" << std::endl;
@@ -378,6 +380,7 @@ public:
     std::cout << "Actual ops: " << actual_ops << std::endl;
     std::cout << "Allocated ops: " << alloc_ops << std::endl;
     std::cout << "Actual op percentage: " << 100*actual_ops/alloc_ops << std::endl;
+    std::cout << "OpenMP threads: " << num_threads << std::endl;
   }
 
   inline bool isBipolarTimesRegular() const {
@@ -431,6 +434,9 @@ static GEMMContext allocGEMMContext_base(
   // allocate result matrix. note that it is not aligned -- the
   // elements corresponding to alignment parts won't materialize.
   ret.res = new int32_t[lhsRows * rhsRows];
+  // (bogus) default value for number of threads
+  ret.num_threads = omp_get_num_procs();
+  omp_set_num_threads(ret.num_threads);
   return ret;
 };
 
