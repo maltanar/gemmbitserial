@@ -32,6 +32,7 @@ public:
     bsm.issigned = issigned;
     uint64_t wordsPerBitplane = bsm.wordsPerBitplane();
     bsm.data = new uint64_t[nbits * wordsPerBitplane];
+    assert(bsm.data != 0);
     return bsm;
   }
 
@@ -434,6 +435,7 @@ static GEMMContext allocGEMMContext_base(
   // allocate result matrix. note that it is not aligned -- the
   // elements corresponding to alignment parts won't materialize.
   ret.res = new int32_t[lhsRows * rhsRows];
+  assert(ret.res != 0);
   // (bogus) default value for number of threads
   ret.num_threads = omp_get_num_procs();
   omp_set_num_threads(ret.num_threads);
