@@ -52,11 +52,12 @@ void benchmark_unrolledpopcount(size_t numBits, float secs) {
   delete [] rnd_vec;
 }
 
+
 void benchmark_gemm_interactive() {
   while(1) {
     int rows, depth, cols, lhsbits, rhsbits, lhssigned, rhssigned;
     float secs;
-    cout << "Enter rows depth cols, 0 for next benchmark, -1 to exit " << endl;
+    //cout << "Enter rows depth cols, 0 for next benchmark, -1 to exit " << endl;
     cin >> rows;
     if(rows == 0) {
       break;
@@ -64,11 +65,11 @@ void benchmark_gemm_interactive() {
       exit(0);
     }
     cin >> depth >> cols;
-    cout << "Enter lhs and rhs bits: " << endl;
+    //cout << "Enter lhs and rhs bits: " << endl;
     cin >> lhsbits >> rhsbits;
-    cout << "Enter signedness (1 or 0) for lhs and rhs: " << endl;
+    //cout << "Enter signedness (1 or 0) for lhs and rhs: " << endl;
     cin >> lhssigned >> rhssigned;
-    cout << "Enter number of seconds to benchmark: " << endl;
+    //cout << "Enter number of seconds to benchmark: " << endl;
     cin >> secs;
     // prepare workload
     uint8_t * rnd_matA = new uint8_t[rows*depth];
@@ -80,15 +81,15 @@ void benchmark_gemm_interactive() {
     GEMMContext ctx = allocGEMMContext(rows, depth, cols, lhsbits, rhsbits, (bool) lhssigned, (bool) rhssigned);
     ctx.lhs.importRegular(rnd_matA);
     ctx.rhs.importRegular(rnd_matB);
-    ctx.printSummary();
+    //ctx.printSummary();
 
 
     delete [] rnd_matA;
     delete [] rnd_matB;
-    cout << "======================================================================" << endl;
+    //cout << "======================================================================" << endl;
     char bench_name[1024];
     sprintf(bench_name, "gemm-%d x %d x %d (%d bit x %d bit)", rows, depth, cols, lhsbits, rhsbits);
-    cout << "Running " << bench_name << " for " << secs << " seconds..." << endl;
+    //cout << "Running " << bench_name << " for " << secs << " seconds..." << endl;
     unsigned int reps = 0;
     auto start = chrono::high_resolution_clock::now();
     auto end = chrono::high_resolution_clock::now();
@@ -98,17 +99,14 @@ void benchmark_gemm_interactive() {
       // =============== end of benchmark kernel ================
       reps += 1;
       end = chrono::high_resolution_clock::now();
-      // ignore the first iteration, it's just for warmup
-      if(reps == 1) {
-        start = end;
-      }
     }
-    cout << "Completed " << reps << " iterations" << endl;
+    //cout << "Completed " << reps << " iterations" << endl;
     float opcount = 2.0*(float)rows*(float)depth*(float)cols;
     float nscount = chrono::duration_cast<std::chrono::nanoseconds>(end-start).count() / (float)reps;
     float perf = opcount / nscount; // billion bit operations per second
-    cout << "Time for a single " << bench_name << ": " << nscount << " nanoseconds" << endl;
-    cout << "Performance for " << bench_name << ": " << perf << " GOPS per second" << endl;
+    //cout << "Time for a single " << bench_name << ": " << nscount << " nanoseconds" << endl;
+    //cout << "Performance for " << bench_name << ": " << perf << " GOPS per second" << endl;
+    cout << bench_name << " " << nscount/1000000.0 << " " << perf << endl;
 
     deallocGEMMContext(ctx);
     delete [] res;
