@@ -5,6 +5,10 @@
 #include <iostream>
 #include <math.h>
 
+#if defined(__ARM_NEON) || defined(__aarch64__)
+#include <arm_neon.h>
+#endif
+
 namespace gemmbitserial {
 
 // Utility function to increment-and-align "in" to "af"

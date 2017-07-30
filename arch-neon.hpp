@@ -1,5 +1,4 @@
 #pragma once
-#include <arm_neon.h>
 
 // architecture-specific implementations of primitives for ARM NEON
 // the tiling strategies are named as:
