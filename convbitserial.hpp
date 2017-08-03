@@ -27,7 +27,9 @@ public:
 
   template <typename T>
   void importActivations(uint8_t * buf) {
-    // TODO import with special attention to channel padding
+    // import into the activation buffer. the rows/cols here are set up s.t.
+    // a regular import is able to handle the channel padding.
+    abuf.importRegular(buf);
     // call the sliding window (im2row) operator to generate lhs matrix
     im2row(abuf, packed_ifm, in_dim, in_dim, k, stride, pad, ctx.lhs.data);
   }
@@ -55,7 +57,7 @@ public:
       const int height_col = (height + 2*pad - ksize) / stride + 1;
       const int width_col = (width + 2*pad - ksize) / stride + 1;
       const int k2 = ksize * ksize;
-      // TODO reorder loops for channel-interleaved layout
+      // TODO reorder loops for channel-interleaved layout for better performance
       int channels_col = channels * ksize * ksize;
       for (c = 0; c < channels_col; ++c) {
           const int w_offset = c % ksize;
@@ -110,34 +112,14 @@ void allocConvBitSerialContext(
   ctx.gemctx = allocateGEMMContext(
     lhs_rows, depth, rhs_rows, ibits, wbits, isigned, wsigned
   );
-  // TODO allocate the buffer for converted activations --
-  // can we use rows=orig_rows*orig_chans and cols=chans with col alignment
-  // to packing size here?
+  // allocate the buffer for converted activations
+  ctx.abuf = BitSerialMatrix::alloc(
+    ibits, ctx.in_dim * ctx.in_dim, ctx.ifm
+  );
   return ctx;
 }
 
 void deallocConvBitSerialContext(ConvBitSerialContext ctx) {
   deallocGEMMContext(ctx.gemmctx);
-}
-
-/* Import a matrix with multichannel data, assuming the following data layout:
-  [rows][cols][chans]
-*/
-template <typename PackedT, typename ImportT>
-static void importInterleavedMultichanMatrix(
-  const ImportT * in,
-  uint64_t rows,  // number of rows
-  uint64_t cols,  // number of columns
-  uint64_t chans  // number of channels, must be divisible by # bits in PackedT
-) {
-  const unsigned int packBits = sizeof(PackedT)*8;
-  // TODO add utility function to create padded v. of tensor if needed
-  // channel size must be divisible by packing size. this is necessary to get
-  // fast lowering for convolutions, carrying multiply channels by moving
-  // around single words without requiring any bit masking.
-  assert(chans % packBits == 0);
-  assert(rows == this->nrows);
-  // treat the innermost two dimensions as a single dimension
-  assert(cols * chans == this->ncols);
-  this->importRegular(in);
+  BitSerialMatrix::dealloc(ctx.abuf);
 }
