@@ -12,8 +12,8 @@ public:
   uint64_t stride;      // convolution kernel stride
   uint64_t pad;         // padded pixels on each edge
 
-  GEMMContext * gemmctx;  // GEMM context
-  BitSerialMatrix * abuf; // buffer for converted activations
+  GEMMContext gemmctx;    // GEMM context
+  BitSerialMatrix abuf;   // buffer for converted activations
   uint64_t aligned_ifm;   // input channels aligned to packing size
   uint64_t packed_ifm;    // input channels after packing
   uint64_t padded_idim;   // padded input dimension (independent from alignment)
@@ -31,7 +31,7 @@ public:
     // a regular import is able to handle the channel padding.
     abuf.importRegular(buf);
     // call the sliding window (im2row) operator to generate lhs matrix
-    im2row(abuf, packed_ifm, in_dim, in_dim, k, stride, pad, ctx.lhs.data);
+    im2row(abuf.data, packed_ifm, in_dim, in_dim, k, stride, pad, gemmctx.lhs.data);
   }
 
   // im2row on interleaved channels inspired from DarkNet
@@ -74,9 +74,9 @@ public:
           }
       }
   }
-}
+};
 
-void allocConvBitSerialContext(
+ConvBitSerialContext allocConvBitSerialContext(
   const uint64_t ifm,         // channels in input
   const uint64_t ofm,         // channels in output
   const uint64_t in_dim,      // input dimension (assumed to be square)
@@ -84,9 +84,9 @@ void allocConvBitSerialContext(
   const uint64_t stride,      // convolution kernel stride
   const uint64_t pad,         // padded pixels on each edge
   const uint64_t ibits,       // bits per input
-  const uint64_t wbits        // bits per weight
-  const bool isigned          // whether inputs are signed
-  const bool wsigned,         // whether weights are signed
+  const uint64_t wbits,       // bits per weight
+  const bool isigned,         // whether inputs are signed
+  const bool wsigned          // whether weights are signed
 ) {
   ConvBitSerialContext ctx;
   ctx.ifm = ifm;
@@ -109,12 +109,12 @@ void allocConvBitSerialContext(
   const uint64_t depth = ctx.aligned_ifm * ctx.k * ctx.k;
   const uint64_t rhs_rows = ofm;
   // allocate the context
-  ctx.gemctx = allocateGEMMContext(
+  ctx.gemmctx = allocGEMMContext(
     lhs_rows, depth, rhs_rows, ibits, wbits, isigned, wsigned
   );
   // allocate the buffer for converted activations
   ctx.abuf = BitSerialMatrix::alloc(
-    ibits, ctx.in_dim * ctx.in_dim, ctx.ifm
+    ibits, ctx.in_dim * ctx.in_dim, ctx.ifm, isigned, 1, pack_bits
   );
   return ctx;
 }
@@ -122,4 +122,5 @@ void allocConvBitSerialContext(
 void deallocConvBitSerialContext(ConvBitSerialContext ctx) {
   deallocGEMMContext(ctx.gemmctx);
   BitSerialMatrix::dealloc(ctx.abuf);
+}
 }

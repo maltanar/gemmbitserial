@@ -5,6 +5,7 @@
 #include <vector>
 #include <deque>
 #include "gemmbitserial.hpp"
+#include "convbitserial.hpp"
 #include "mnistdata.h"
 
 using namespace std;
