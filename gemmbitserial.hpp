@@ -59,6 +59,9 @@ public:
     std::cout << "Bits of precision: " << nbits << " signed: " << issigned << std::endl;
     std::cout << "Actual size: " << nrows << " x " << ncols << std::endl;
     std::cout << "Allocated size: " << nrows_a << " x " << ncols_a << std::endl;
+    std::cout << "Words per row: " << wordsPerRow() << std::endl;
+    std::cout << "Words per bitplane: " << wordsPerBitplane() << std::endl;
+    std::cout << "Total words in data[]: " << nbits*wordsPerBitplane() << std::endl;
   }
 
   // return whether the matrix contains bipolar binary {-1, +1} values
