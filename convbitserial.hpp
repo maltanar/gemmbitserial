@@ -13,25 +13,50 @@ public:
   uint64_t pad;         // padded pixels on each edge
 
   GEMMContext gemmctx;    // GEMM context
-  BitSerialMatrix abuf;   // buffer for converted activations
+  BitSerialMatrix abuf;   // buffer for converted activations (prior to lowering)
   uint64_t aligned_ifm;   // input channels aligned to packing size
   uint64_t packed_ifm;    // input channels after packing
   uint64_t padded_idim;   // padded input dimension (independent from alignment)
   uint64_t out_dim;       // output dimension (assumed to be square)
 
+  void printSummary() {
+    std::cout << "========================" << std::endl;
+    std::cout << "ConvBitSerialContext" << std::endl;
+    std::cout << "Input channels x dim: " << ifm << " x " << in_dim << std::endl;
+    std::cout << "Input channels aligned to packing: " << aligned_ifm << std::endl;
+    std::cout << "Output channels x dim: " << ofm << " x " << out_dim << std::endl;
+    std::cout << "ksize, stride, pad: " << k << ", " << stride << ", " << pad << std::endl;
+    std::cout << "========================" << std::endl;
+    std::cout << "Activation buffer summary: ";
+    abuf.printSummary();
+    std::cout << "========================" << std::endl;
+    std::cout << "Lowered activation matrix (LHS) summary: ";
+    gemmctx.lhs.printSummary();
+    std::cout << "========================" << std::endl;
+    std::cout << "Weight matrix (RHS) summary: ";
+    gemmctx.rhs.printSummary();
+    std::cout << "========================" << std::endl;
+  }
+
   template <typename T>
   void importWeights(T * buf) {
+    // TODO this is incorrect -- weight matrix also needs to cater for
+    // ifm channel padding
     // just call importRegular on the rhs matrix
     gemmctx.rhs.importRegular(buf);
   }
 
   template <typename T>
-  void importActivations(uint8_t * buf) {
+  void importActivations(T * buf) {
     // import into the activation buffer. the rows/cols here are set up s.t.
     // a regular import is able to handle the channel padding.
     abuf.importRegular(buf);
     // call the sliding window (im2row) operator to generate lhs matrix
-    im2row(abuf.data, packed_ifm, in_dim, in_dim, k, stride, pad, gemmctx.lhs.data);
+    for(int b = 0; b < gemmctx.lhs.nbits; b++) {
+      im2row(
+        abuf.bitplaneptr(b), packed_ifm, in_dim, in_dim, k, stride, pad, gemmctx.lhs.bitplaneptr(b)
+      );
+    }
   }
 
   // im2row on interleaved channels inspired from DarkNet
@@ -45,7 +70,7 @@ public:
       if (prow < 0 || pcol < 0 ||
           prow >= height || pcol >= width) return 0;
       // indexing according to [height][width][channel]
-      return im[pcol + width*(prow + height*channel)];
+      std::cout << "prow=" << prow << " pcol=" << pcol << " chan =" << channel << " " << im[channel + channels*(pcol + width*prow)] << std::endl;
       return im[channel + channels*(pcol + width*prow)];
   }
   template <typename Dtype, typename DtypeOut>
@@ -95,12 +120,12 @@ ConvBitSerialContext allocConvBitSerialContext(
   ctx.k = k;
   ctx.stride = stride;
   ctx.pad = pad;
-  const uint64_t pack_bits = sizeof(uint64_t);
+  const uint64_t pack_bits = sizeof(uint64_t) * 8;
   // determine the output dimension based on input
   ctx.padded_idim = ctx.in_dim + 2*ctx.pad;
   ctx.out_dim = ((ctx.padded_idim - ctx.k) / ctx.stride) + 1;
   // round up number of input channels to be divisible by packing size
-  ctx.aligned_ifm = (ctx.ifm + pack_bits - 1) / pack_bits;
+  ctx.aligned_ifm = alignTo(ctx.ifm, pack_bits);
   // number of channels after packing
   ctx.packed_ifm = ctx.aligned_ifm / pack_bits;
   // determine the matrix sizes for the lowered convolution
