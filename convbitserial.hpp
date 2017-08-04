@@ -40,10 +40,15 @@ public:
 
   template <typename T>
   void importWeights(T * buf) {
-    // TODO this is incorrect -- weight matrix also needs to cater for
-    // ifm channel padding
-    // just call importRegular on the rhs matrix
-    gemmctx.rhs.importRegular(buf);
+    // temporarily allocate a new matrix to perform channel-padded input
+    // this is the same trick we use while importing the activations
+    BitSerialMatrix bsm = BitSerialMatrix::alloc(
+      gemmctx.rhs.nbits, gemmctx.rhs.nrows * k * k, ifm, gemmctx.rhs.issigned, 1, sizeof(uint64_t)*8
+    );
+    bsm.importRegular(buf);
+    assert(gemmctx.rhs.wordsPerBitplane() == bsm.wordsPerBitplane());
+    memcpy(gemmctx.rhs.data, bsm.data, sizeof(uint64_t)*bsm.nbits*bsm.wordsPerBitplane());
+    BitSerialMatrix::dealloc(bsm);
   }
 
   template <typename T>
