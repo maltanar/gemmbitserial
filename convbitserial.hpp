@@ -3,6 +3,46 @@
 
 namespace gemmbitserial {
 
+// im2row on interleaved channels inspired from DarkNet
+template <typename Dtype>
+inline Dtype im2row_get_pixel(const Dtype *im, const int height, const int width, const int channels,
+                        const int row, const int col, const int channel, const int pad)
+{
+    const int prow = row - pad;
+    const int pcol = col - pad;
+
+    if (prow < 0 || pcol < 0 ||
+        prow >= height || pcol >= width) return 0;
+    // indexing according to [height][width][channel]
+    return im[channel + channels*(pcol + width*prow)];
+}
+template <typename Dtype, typename DtypeOut>
+void im2row(const Dtype* data_im,
+     const int channels, const int height, const int width,
+     const int ksize, const int stride, const int pad, DtypeOut* data_col)
+{
+    int c,h,w;
+    const int height_col = (height + 2*pad - ksize) / stride + 1;
+    const int width_col = (width + 2*pad - ksize) / stride + 1;
+    const int k2 = ksize * ksize;
+    // TODO reorder loops for channel-interleaved layout for better performance
+    int channels_col = channels * ksize * ksize;
+    for (c = 0; c < channels_col; ++c) {
+        const int w_offset = c % ksize;
+        const int h_offset = (c / ksize) % ksize;
+        const int c_im = c / k2;
+        for (h = 0; h < height_col; ++h) {
+            for (w = 0; w < width_col; ++w) {
+                const int im_row = h_offset + h * stride;
+                const int im_col = w_offset + w * stride;
+                const int col_index = c + channels_col * (w + h * width_col);
+                data_col[col_index] = (DtypeOut) (im2row_get_pixel(data_im, height, width, channels,
+                        im_row, im_col, c_im, pad));
+            }
+        }
+    }
+}
+
 class ConvBitSerialContext {
 public:
   uint64_t ifm;         // channels in input
@@ -62,47 +102,6 @@ public:
         abuf.bitplaneptr(b), packed_ifm, in_dim, in_dim, k, stride, pad, gemmctx.lhs.bitplaneptr(b)
       );
     }
-  }
-
-  // im2row on interleaved channels inspired from DarkNet
-  template <typename Dtype>
-  inline Dtype im2row_get_pixel(const Dtype *im, const int height, const int width, const int channels,
-                          const int row, const int col, const int channel, const int pad)
-  {
-      const int prow = row - pad;
-      const int pcol = col - pad;
-
-      if (prow < 0 || pcol < 0 ||
-          prow >= height || pcol >= width) return 0;
-      // indexing according to [height][width][channel]
-      std::cout << "prow=" << prow << " pcol=" << pcol << " chan =" << channel << " " << im[channel + channels*(pcol + width*prow)] << std::endl;
-      return im[channel + channels*(pcol + width*prow)];
-  }
-  template <typename Dtype, typename DtypeOut>
-  void im2row(const Dtype* data_im,
-       const int channels, const int height, const int width,
-       const int ksize, const int stride, const int pad, DtypeOut* data_col)
-  {
-      int c,h,w;
-      const int height_col = (height + 2*pad - ksize) / stride + 1;
-      const int width_col = (width + 2*pad - ksize) / stride + 1;
-      const int k2 = ksize * ksize;
-      // TODO reorder loops for channel-interleaved layout for better performance
-      int channels_col = channels * ksize * ksize;
-      for (c = 0; c < channels_col; ++c) {
-          const int w_offset = c % ksize;
-          const int h_offset = (c / ksize) % ksize;
-          const int c_im = c / k2;
-          for (h = 0; h < height_col; ++h) {
-              for (w = 0; w < width_col; ++w) {
-                  const int im_row = h_offset + h * stride;
-                  const int im_col = w_offset + w * stride;
-                  const int col_index = c + channels_col * (w + h * width_col);
-                  data_col[col_index] = (DtypeOut) (im2row_get_pixel(data_im, height, width, channels,
-                          im_row, im_col, c_im, pad));
-              }
-          }
-      }
   }
 };
 

@@ -349,15 +349,77 @@ bool test_bipolar_times_bipolar() {
   return ok == numConfigs;
 }
 
+bool test_conv_lowering() {
+  vector<int> ibits_sweep {2};
+  vector<int> wbits_sweep {2};
+  vector<int> ifm_sweep {2};
+  vector<int> ofm_sweep {2};
+  deque<bool> isigned_sweep {false};
+  deque<bool> wsigned_sweep {false};
+  vector<int> idim_sweep {4};
+  vector<int> k_sweep {2};
+  vector<int> stride_sweep {1};
+  vector<int> pad_sweep {0};
+
+  for(auto & ibits: ibits_sweep) {
+    for(auto & wbits: wbits_sweep) {
+      for(auto & idim: idim_sweep) {
+        for(auto & k: k_sweep) {
+          for(auto & stride: stride_sweep) {
+            for(auto & pad: pad_sweep) {
+              for(auto & isigned: isigned_sweep) {
+                for(auto & wsigned: wsigned_sweep) {
+                  for(auto & ifm: ifm_sweep) {
+                    for(auto & ofm: ofm_sweep) {
+                      // calculate some sizes
+                      int depth = k * k * ifm;
+                      int odim = (((idim + 2*pad) - k) / stride) + 1;
+                      // allocate input image and weight
+                      uint8_t * w = new uint8_t[ofm * depth];
+                      uint8_t * a = new uint8_t[ifm * idim * idim];
+                      uint8_t * a_lowered = new uint8_t[odim * odim * depth];
+                      int32_t * res = new int32_t[odim * odim * ofm];
+                      // random initialization
+                      generateRandomVector(wbits, ofm*depth, w, wsigned);
+                      generateRandomVector(ibits, ifm*idim*idim, a, isigned);
+                      memset(res, 0, sizeof(int32_t)*odim*odim*ofm);
+                      // allocate conv context
+                      ConvBitSerialContext ctx = allocConvBitSerialContext(
+                        ifm, ofm, idim, k, stride, pad, ibits, wbits, isigned, wsigned
+                      );
+                      ctx.importWeights(w);
+                      ctx.importActivations(a);
+                      gemmBitSerial(ctx.gemmctx);
+                      // TODO produce golden and compare
+
+                      // cleanup
+                      deallocConvBitSerialContext(ctx);
+                      delete [] res;
+                      delete [] w;
+                      delete [] a;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
+
 int main(int argc, char const *argv[]) {
   srand(time(NULL));
   bool all_ok = true;
-  all_ok &= test_conversions();
+  all_ok &= test_conv_lowering();
+  /*all_ok &= test_conversions();
   all_ok &= test_rowwise_sum();
   all_ok &= test_mnist();
   all_ok &= test_matrix_matrix();
   all_ok &= test_bipolar_times_regular();
-  all_ok &= test_bipolar_times_bipolar();
+  all_ok &= test_bipolar_times_bipolar();*/
 
   if(all_ok) {
     cout << "All tests completed successfully" << endl;
