@@ -350,16 +350,89 @@ bool test_bipolar_times_bipolar() {
 }
 
 bool test_conv_lowering() {
-  vector<int> ibits_sweep {2};
-  vector<int> wbits_sweep {2};
-  vector<int> ifm_sweep {1};  // TODO > 1 failed
-  vector<int> ofm_sweep {1};
-  deque<bool> isigned_sweep {false};
-  deque<bool> wsigned_sweep {false};
-  vector<int> idim_sweep {4};
-  vector<int> k_sweep {2}; // TODO 1 and 3 failed, 2 and 4 worked
-  vector<int> stride_sweep {1};
-  vector<int> pad_sweep {0};
+  // some notes on this test:
+  // * IFM must be multiple of 64, since we don't support chan padding in direct lowering
+  // * the datatype must support zero (i.e. no bipolar)
+  // * OFM = 1 has a known bug so is not included
+  vector<int> ibits_sweep {1, 2, 3};
+  vector<int> ifm_sweep {64, 128};
+  vector<int> ofm_sweep {2, 4};
+  vector<int> idim_sweep {15, 16};
+  vector<int> k_sweep {2, 3};
+  vector<int> stride_sweep {1, 2};
+  vector<int> pad_sweep {0, 1};
+  unsigned int numConfigs = 0, ok = 0, nok = 0;
+
+  for(auto & ibits: ibits_sweep) {
+  for(auto & idim: idim_sweep) {
+  for(auto & k: k_sweep) {
+  for(auto & stride: stride_sweep) {
+  for(auto & pad: pad_sweep) {
+  for(auto & ifm: ifm_sweep) {
+  for(auto & ofm: ofm_sweep) {
+    // calculate some sizes
+    int depth = k * k * ifm;
+    int odim = (((idim + 2*pad) - k) / stride) + 1;
+    // allocate input image and weight
+    //uint8_t * w = new uint8_t[ofm * depth];
+    uint8_t * a = new uint8_t[ifm * idim * idim];
+    uint8_t * a_lowered = new uint8_t[odim * odim * depth];
+    //int32_t * res_golden = new int32_t[odim * odim * ofm];
+    // random initialization
+    //generateRandomVector(wbits, ofm*depth, w, wsigned);
+    generateRandomVector(ibits, ifm*idim*idim, a, false);
+    //memset(res_golden, 0, sizeof(int32_t)*odim*odim*ofm);
+    // allocate conv context
+    ConvBitSerialContext ctx = allocConvBitSerialContext(
+    ifm, ofm, idim, k, stride, pad, ibits, 2, false, false
+    );
+    //ctx.importWeights(w);
+    ctx.importActivations(a);
+    // produce golden and compare
+    im2row(a, ifm, idim, idim, k, stride, pad, a_lowered);
+    uint8_t * a_lowered_produced = new uint8_t[odim * odim * depth];
+    ctx.gemmctx.lhs.exportRegular(a_lowered_produced);
+    //ctx.printSummary();
+    int res = memcmp(a_lowered, a_lowered_produced, sizeof(uint8_t)*odim * odim * depth);
+    if(res == 0) {
+    ok++;
+    } else {
+    nok++;
+    //VERBOSE_TEST(printmatrix(a_lowered, odim*odim, depth));
+    //VERBOSE_TEST(printmatrix(a_lowered_produced, odim*odim, depth));
+    }
+    numConfigs++;
+    VERBOSE_TEST(cout << "ibits " << ibits << " ifm " << ifm << " ofm " << ofm << " idim " << idim << " k " << k << " result = " << res << endl);
+    // cleanup
+    deallocConvBitSerialContext(ctx);
+    //delete [] res_golden;
+    delete [] a_lowered;
+    delete [] a_lowered_produced;
+    //delete [] w;
+    delete [] a;
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  cout << "Convolution lowering tests: " << ok << " OK, " << nok << " NOK" << endl;
+  return ok == numConfigs;
+}
+
+bool test_conv() {
+  // TODO add bipolar times bipolar conv test cases
+  vector<int> ibits_sweep {2, 3};
+  vector<int> wbits_sweep {1, 2, 3};
+  vector<int> ifm_sweep {1, 2, 3};
+  vector<int> ofm_sweep {2, 4};
+  deque<bool> isigned_sweep {true, false};
+  deque<bool> wsigned_sweep {true, false};
+  vector<int> idim_sweep {15, 16};
+  vector<int> k_sweep {2, 3};
+  vector<int> stride_sweep {1, 2};
+  vector<int> pad_sweep {0, 1};
   unsigned int numConfigs = 0, ok = 0, nok = 0;
 
   for(auto & ibits: ibits_sweep) {
@@ -376,9 +449,9 @@ bool test_conv_lowering() {
                       int depth = k * k * ifm;
                       int odim = (((idim + 2*pad) - k) / stride) + 1;
                       // allocate input image and weight
-                      uint8_t * w = new uint8_t[ofm * depth];
-                      uint8_t * a = new uint8_t[ifm * idim * idim];
-                      uint8_t * a_lowered = new uint8_t[odim * odim * depth];
+                      int8_t * w = new int8_t[ofm * depth];
+                      int8_t * a = new int8_t[ifm * idim * idim];
+                      int8_t * a_lowered = new int8_t[odim * odim * depth];
                       int32_t * res_golden = new int32_t[odim * odim * ofm];
                       // random initialization
                       generateRandomVector(wbits, ofm*depth, w, wsigned);
@@ -393,17 +466,19 @@ bool test_conv_lowering() {
                       gemmBitSerial(ctx.gemmctx);
                       // produce golden and compare
                       im2row(a, ifm, idim, idim, k, stride, pad, a_lowered);
-                      naive_int_gemm(
-                        a_lowered, w, res_golden, odim*odim, depth, ofm
-                      );
-                      printmatrix(res_golden, odim*odim, ofm);
-                      printmatrix(ctx.gemmctx.res, odim*odim, ofm);
-                      if(memcmp(res_golden, ctx.gemmctx.res, sizeof(int32_t)*odim * odim * ofm) == 0) {
+                      naive_int_gemm(a_lowered, w, res_golden, odim*odim, depth, ofm);
+
+                      //ctx.printSummary();
+                      int res = memcmp(res_golden, ctx.gemmctx.res, sizeof(int32_t)*odim * odim * ofm);
+                      if(res == 0) {
                         ok++;
                       } else {
                         nok++;
+                        //VERBOSE_TEST(printmatrix(a_lowered, odim*odim, depth));
+                        //VERBOSE_TEST(printmatrix(a_lowered_produced, odim*odim, depth));
                       }
                       numConfigs++;
+                      VERBOSE_TEST(cout << "ifm " << ifm << " ofm " << ofm << " idim " << idim << " k " << k << " result = " << res << endl);
                       // cleanup
                       deallocConvBitSerialContext(ctx);
                       delete [] res_golden;
@@ -427,13 +502,14 @@ bool test_conv_lowering() {
 int main(int argc, char const *argv[]) {
   srand(time(NULL));
   bool all_ok = true;
-  all_ok &= test_conv_lowering();
-  /*all_ok &= test_conversions();
+  all_ok &= test_conversions();
   all_ok &= test_rowwise_sum();
   all_ok &= test_mnist();
   all_ok &= test_matrix_matrix();
   all_ok &= test_bipolar_times_regular();
-  all_ok &= test_bipolar_times_bipolar();*/
+  all_ok &= test_bipolar_times_bipolar();
+  all_ok &= test_conv_lowering();
+  all_ok &= test_conv();
 
   if(all_ok) {
     cout << "All tests completed successfully" << endl;
