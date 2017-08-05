@@ -21,26 +21,30 @@ void im2row(const Dtype* data_im,
      const int channels, const int height, const int width,
      const int ksize, const int stride, const int pad, DtypeOut* data_col)
 {
-    int c,h,w;
-    const int height_col = (height + 2*pad - ksize) / stride + 1;
-    const int width_col = (width + 2*pad - ksize) / stride + 1;
-    const int k2 = ksize * ksize;
-    // TODO reorder loops for channel-interleaved layout for better performance
-    int channels_col = channels * ksize * ksize;
-    for (c = 0; c < channels_col; ++c) {
-        const int w_offset = c % ksize;
-        const int h_offset = (c / ksize) % ksize;
-        const int c_im = c / k2;
-        for (h = 0; h < height_col; ++h) {
-            for (w = 0; w < width_col; ++w) {
-                const int im_row = h_offset + h * stride;
-                const int im_col = w_offset + w * stride;
-                const int col_index = c + channels_col * (w + h * width_col);
-                data_col[col_index] = (DtypeOut) (im2row_get_pixel(data_im, height, width, channels,
-                        im_row, im_col, c_im, pad));
-            }
+  int c,h,w;
+  const int height_col = (height + 2*pad - ksize) / stride + 1;
+  const int width_col = (width + 2*pad - ksize) / stride + 1;
+  const int k2 = ksize * ksize;
+
+  int channels_col = channels * ksize * ksize;
+  for (h = 0; h < height_col; ++h) {
+    for (w = 0; w < width_col; ++w) {
+      for(int ky = 0; ky < ksize; ky++) {
+        const int im_row = ky + h*stride /*src row*/;
+        for(int kx = 0; kx < ksize; kx++) {
+          const int im_col = kx + w*stride /*src col*/;
+          for(int c = 0; c < channels; c++) {
+            const int im_chan = c /*src chan*/;
+            *data_col = (DtypeOut) im2row_get_pixel(
+              data_im, height, width, channels,
+              im_row, im_col, im_chan, pad
+            );
+            data_col++;
+          }
         }
+      }
     }
+  }
 }
 
 class ConvBitSerialContext {
@@ -117,6 +121,8 @@ ConvBitSerialContext allocConvBitSerialContext(
   const bool isigned,         // whether inputs are signed
   const bool wsigned          // whether weights are signed
 ) {
+  // there's currently a bug with ofm=1 configs, assert until resolved
+  assert(ofm != 1);
   ConvBitSerialContext ctx;
   ctx.ifm = ifm;
   ctx.ofm = ofm;
@@ -145,6 +151,8 @@ ConvBitSerialContext allocConvBitSerialContext(
   ctx.abuf = BitSerialMatrix::alloc(
     ibits, ctx.in_dim * ctx.in_dim, ctx.ifm, isigned, 1, pack_bits
   );
+  // bipolar-bipolar convs not yet supported due to padding issues
+  assert(!(ctx.gemmctx.lhs.isBipolar() && ctx.gemmctx.rhs.isBipolar()));
   return ctx;
 }
 
