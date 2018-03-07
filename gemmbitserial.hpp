@@ -340,9 +340,14 @@ static void computeBlockSize(float lhsMult, float rhsMult, float cacheBits, floa
   int64_t x0 = floor((-b + discr) / (2*a));
   int64_t x1 = floor((-b - discr) / (2*a));
   int64_t x = x0 > x1 ? x0 : x1;
-  assert(x > 0);
-  lhsBlock = lhsMult * x;
-  rhsBlock = rhsMult * x;
+  if(x > 0) {
+    lhsBlock = lhsMult * x;
+    rhsBlock = rhsMult * x;
+  } else {
+    // some of the assumptions failed, return default block size
+    lhsBlock = lhsMult;
+    rhsBlock = rhsMult;
+  }
 };
 
 // rather naive, iterative search for a better block size
