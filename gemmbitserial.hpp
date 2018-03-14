@@ -61,6 +61,19 @@ public:
     std::cout << "Allocated size: " << nrows_a << " x " << ncols_a << std::endl;
   }
 
+  void printHex() {
+    for(int i = 0; i < nbits; i++) {
+      std::cout << "Bit " << i << ":" << std::endl;
+      for(int j = 0; j < nrows_a; j++) {
+        for(int k = 0; k < ncols_a/64; k++) {
+          std::cout << std::hex << word(i, j, k*64) << " " << std::dec;
+        }
+        std::cout << endl;
+      }
+      std::cout << endl;
+    }
+  }
+
   // return whether the matrix contains bipolar binary {-1, +1} values
   inline bool isBipolar() const {
     return nbits == 1 && issigned;
