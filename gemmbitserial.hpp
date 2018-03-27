@@ -68,9 +68,9 @@ public:
         for(int k = 0; k < ncols_a/64; k++) {
           std::cout << std::hex << word(i, j, k*64) << " " << std::dec;
         }
-        std::cout << endl;
+        std::cout << std::endl;
       }
-      std::cout << endl;
+      std::cout << std::endl;
     }
   }
 
