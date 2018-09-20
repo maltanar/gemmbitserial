@@ -1,5 +1,8 @@
 #include <iostream>
 #include <cstdlib>
+#include <cassert>
+
+namespace gemmbitserial {
 
 // Generate a random vector of -1 and +1 values of given dimension
 template <typename T>
@@ -72,4 +75,6 @@ void printmatrixdiff(const T * mat1, const T * mat2, int rows, int cols) {
     }
   }
   std::cout << std::endl;
+}
+
 }
