@@ -5,10 +5,6 @@
 #include <iostream>
 #include <math.h>
 
-#if defined(__ARM_NEON) || defined(__aarch64__)
-#include <arm_neon.h>
-#endif
-
 namespace gemmbitserial {
 
 // Utility function to increment-and-align "in" to "af"
@@ -466,9 +462,10 @@ static void deallocGEMMContext(GEMMContext ctx) {
 // generic implementations using regular & and __builtin_popcountll
 #include "arch-generic.hpp"
 
-// select the implementations to be used based on architecture
-#if defined(__ARM_NEON) || defined(__aarch64__)
+// select the implementations to be used based on defines
+#ifdef GEMMBITSERIAL_USE_ARM_NEON
 #warning "Compiling with ARM NEON"
+#include <arm_neon.h>
 #include "arch-neon.hpp"
 // ARM NEON-specific implementations
 #define gemmBitSerial     gemmBitSerial_neon
