@@ -5,10 +5,6 @@
 #include <iostream>
 #include <math.h>
 
-#if defined(__ARM_NEON) || defined(__aarch64__)
-#include <arm_neon.h>
-#endif
-
 namespace gemmbitserial {
 
 // Utility function to increment-and-align "in" to "af"
@@ -62,6 +58,19 @@ public:
     std::cout << "Words per row: " << wordsPerRow() << std::endl;
     std::cout << "Words per bitplane: " << wordsPerBitplane() << std::endl;
     std::cout << "Total words in data[]: " << nbits*wordsPerBitplane() << std::endl;
+  }
+
+  void printHex() {
+    for(int i = 0; i < nbits; i++) {
+      std::cout << "Bit " << i << ":" << std::endl;
+      for(int j = 0; j < nrows_a; j++) {
+        for(int k = 0; k < ncols_a/64; k++) {
+          std::cout << std::hex << word(i, j, k*64) << " " << std::dec;
+        }
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
+    }
   }
 
   // return whether the matrix contains bipolar binary {-1, +1} values
@@ -343,9 +352,14 @@ static void computeBlockSize(float lhsMult, float rhsMult, float cacheBits, floa
   int64_t x0 = floor((-b + discr) / (2*a));
   int64_t x1 = floor((-b - discr) / (2*a));
   int64_t x = x0 > x1 ? x0 : x1;
-  assert(x > 0);
-  lhsBlock = lhsMult * x;
-  rhsBlock = rhsMult * x;
+  if(x > 0) {
+    lhsBlock = lhsMult * x;
+    rhsBlock = rhsMult * x;
+  } else {
+    // some of the assumptions failed, return default block size
+    lhsBlock = lhsMult;
+    rhsBlock = rhsMult;
+  }
 };
 
 // rather naive, iterative search for a better block size
@@ -451,9 +465,10 @@ static void deallocGEMMContext(GEMMContext ctx) {
 // generic implementations using regular & and __builtin_popcountll
 #include "arch-generic.hpp"
 
-// select the implementations to be used based on architecture
-#if defined(__ARM_NEON) || defined(__aarch64__)
+// select the implementations to be used based on defines
+#ifdef GEMMBITSERIAL_USE_ARM_NEON
 #warning "Compiling with ARM NEON"
+#include <arm_neon.h>
 #include "arch-neon.hpp"
 // ARM NEON-specific implementations
 #define gemmBitSerial     gemmBitSerial_neon
