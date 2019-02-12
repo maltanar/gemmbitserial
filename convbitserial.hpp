@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CONVBITSERIAL_H
+#define CONVBITSERIAL_H
 #include "gemmbitserial.hpp"
 
 namespace gemmbitserial {
@@ -17,7 +18,7 @@ inline Dtype im2row_get_pixel(const Dtype *im, const int height, const int width
     return im[channel + channels*(pcol + width*prow)];
 }
 template <typename Dtype, typename DtypeOut>
-void im2row(const Dtype* data_im,
+inline void im2row(const Dtype* data_im,
      const int channels, const int height, const int width,
      const int ksize, const int stride, const int pad, DtypeOut* data_col)
 {
@@ -109,7 +110,7 @@ public:
   }
 };
 
-ConvBitSerialContext allocConvBitSerialContext(
+inline ConvBitSerialContext allocConvBitSerialContext(
   const uint64_t ifm,         // channels in input
   const uint64_t ofm,         // channels in output
   const uint64_t in_dim,      // input dimension (assumed to be square)
@@ -156,8 +157,9 @@ ConvBitSerialContext allocConvBitSerialContext(
   return ctx;
 }
 
-void deallocConvBitSerialContext(ConvBitSerialContext ctx) {
+inline void deallocConvBitSerialContext(ConvBitSerialContext ctx) {
   deallocGEMMContext(ctx.gemmctx);
   BitSerialMatrix::dealloc(ctx.abuf);
 }
 }
+#endif /* end of include guard: CONVBITSERIAL_H */
