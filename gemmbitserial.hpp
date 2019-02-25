@@ -72,7 +72,7 @@ public:
     assert(src.nrows == nrows);
     assert(src.ncols == ncols);
     if(src.wordsPerBitplane() == wordsPerBitplane()) {
-      memcpy(data, src.data, nbits * wordsPerBitplane());
+      memcpy(data, src.data, nbits * wordsPerBitplane() * sizeof(uint64_t));
     } else {
       size_t copy_bytes = sizeof(uint64_t) * std::min(src.wordsPerRow(), wordsPerRow());
       for(uint64_t b = 0; b < nbits; b++) {
