@@ -65,6 +65,26 @@ public:
     std::cout << "Align rows cols: " << rowalign << " " << colalign << std::endl;
   }
 
+  // copy from src BitSerialMatrix into this BitSerialMatrix, regardless of
+  // alignment
+  void copyFrom(BitSerialMatrix src) {
+    assert(src.nbits == nbits);
+    assert(src.nrows == nrows);
+    assert(src.ncols == ncols);
+    if(src.wordsPerBitplane() == wordsPerBitplane()) {
+      memcpy(data, src.data, nbits * wordsPerBitplane());
+    } else {
+      size_t copy_bytes = sizeof(uint64_t) * std::min(src.wordsPerRow(), wordsPerRow());
+      for(uint64_t b = 0; b < nbits; b++) {
+        for(uint64_t r = 0; r < nrows; r++) {
+          memcpy(rowptr(b, r), src.rowptr(b, r), copy_bytes);
+        }
+      }
+    }
+
+
+  }
+
   void printHex() {
     for(int i = 0; i < nbits; i++) {
       std::cout << "Bit " << i << ":" << std::endl;
