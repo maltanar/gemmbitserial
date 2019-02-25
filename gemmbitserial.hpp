@@ -81,8 +81,14 @@ public:
         }
       }
     }
+  }
 
-
+  // copy from src BitSerialMatrix into this BitSerialMatrix, regardless of
+  // alignment
+  void copyFrom_IgnoreSpatialMismatch(BitSerialMatrix src) {
+    assert(src.nbits == nbits);
+    assert(src.wordsPerBitplane() == wordsPerBitplane());
+    memcpy(data, src.data, nbits * wordsPerBitplane() * sizeof(uint64_t));
   }
 
   void printHex() {

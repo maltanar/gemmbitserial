@@ -91,7 +91,7 @@ public:
       gemmctx.rhs.nbits, gemmctx.rhs.nrows * k * k, ifm, gemmctx.rhs.issigned, 1, sizeof(uint64_t)*8
     );
     bsm.importRegular(buf);
-    gemmctx.rhs.copyFrom(bsm);
+    gemmctx.rhs.copyFrom_IgnoreSpatialMismatch(bsm);
     BitSerialMatrix::dealloc(bsm);
   }
 
