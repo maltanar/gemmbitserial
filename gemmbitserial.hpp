@@ -62,6 +62,7 @@ public:
     std::cout << "Words per row: " << wordsPerRow() << std::endl;
     std::cout << "Words per bitplane: " << wordsPerBitplane() << std::endl;
     std::cout << "Total words in data[]: " << nbits*wordsPerBitplane() << std::endl;
+    std::cout << "Align rows cols: " << rowalign << " " << colalign << std::endl;
   }
 
   void printHex() {

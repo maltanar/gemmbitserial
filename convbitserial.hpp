@@ -91,8 +91,13 @@ public:
       gemmctx.rhs.nbits, gemmctx.rhs.nrows * k * k, ifm, gemmctx.rhs.issigned, 1, sizeof(uint64_t)*8
     );
     bsm.importRegular(buf);
-    assert(gemmctx.rhs.wordsPerBitplane() == bsm.wordsPerBitplane());
-    memcpy(gemmctx.rhs.data, bsm.data, sizeof(uint64_t)*bsm.nbits*bsm.wordsPerBitplane());
+    if(gemmctx.rhs.wordsPerBitplane() == bsm.wordsPerBitplane()) {
+      memcpy(gemmctx.rhs.data, bsm.data, sizeof(uint64_t)*bsm.nbits*bsm.wordsPerBitplane());
+    } else {
+      for(int b = 0; b < gemmctx.rhs.nbits; b++) {
+        memcpy(gemmctx.rhs.bitplaneptr(b), bsm.bitplaneptr(b), bsm.wordsPerBitplane() * sizeof(uint64_t));
+      }
+    }
     BitSerialMatrix::dealloc(bsm);
   }
 
