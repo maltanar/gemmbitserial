@@ -26,6 +26,8 @@ public:
     bsm.nbits = nbits;
     bsm.nrows = nrows;
     bsm.ncols = ncols;
+    bsm.rowalign = rowalign;
+    bsm.colalign = colalign;
     bsm.nrows_a = alignTo(nrows, rowalign);
     bsm.ncols_a = alignTo(ncols, colalign);
     bsm.issigned = issigned;
@@ -48,6 +50,8 @@ public:
   uint64_t nrows_a;     // number of allocated rows
   uint64_t ncols_a;     // number of allocated columns
   uint64_t * data;      // data buffer, layout [nbits][nrows_a][ncols_a/64]
+  uint64_t rowalign;    // alignment factor for rows
+  uint64_t colalign;    // alignment factor for cols
 
   // print key statistics about BitSerialMatrix to stdout
   void printSummary() {
