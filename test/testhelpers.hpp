@@ -1,3 +1,5 @@
+#ifndef TESTHELPERS_HPP
+#define TESTHELPERS_HPP
 #include <iostream>
 #include <cstdlib>
 #include <cassert>
@@ -78,3 +80,4 @@ void printmatrixdiff(const T * mat1, const T * mat2, int rows, int cols) {
 }
 
 }
+#endif
